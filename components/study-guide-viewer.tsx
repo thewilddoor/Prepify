@@ -1,7 +1,7 @@
 'use client';
 
 import { Card } from '@/components/ui/card';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, Printer } from 'lucide-react';
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -24,9 +24,133 @@ export function StudyGuideViewer({ content }: StudyGuideViewerProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handlePrint = () => {
+    const printContent = document.getElementById('printable-study-guide');
+    if (!printContent) return;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Study Guide</title>
+          <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.25/dist/katex.min.css">
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+              line-height: 1.6;
+              color: #000;
+              background: #fff;
+              margin: 0;
+              padding: 20mm;
+            }
+            h1, h2, h3, h4, h5, h6 {
+              page-break-after: avoid;
+              page-break-inside: avoid;
+              margin-top: 1.5em;
+              margin-bottom: 0.5em;
+            }
+            h1 { font-size: 2em; }
+            h2 { font-size: 1.5em; }
+            h3 { font-size: 1.25em; }
+            p { margin: 1em 0; }
+            .katex-display, pre, code, table {
+              page-break-inside: avoid;
+            }
+            pre {
+              background: #f5f5f5;
+              padding: 1em;
+              border-radius: 4px;
+              overflow-x: auto;
+            }
+            code {
+              background: #f5f5f5;
+              padding: 0.2em 0.4em;
+              border-radius: 3px;
+              font-family: 'Courier New', monospace;
+            }
+            table {
+              border-collapse: collapse;
+              width: 100%;
+              margin: 1em 0;
+            }
+            th, td {
+              border: 1px solid #ccc;
+              padding: 8px;
+              text-align: left;
+            }
+            th {
+              background: #f5f5f5;
+              font-weight: bold;
+            }
+            ul, ol {
+              margin: 1em 0;
+              padding-left: 2em;
+            }
+            li {
+              margin: 0.5em 0;
+            }
+            blockquote {
+              border-left: 4px solid #643caa;
+              padding-left: 1em;
+              margin: 1em 0;
+              font-style: italic;
+              color: #555;
+            }
+            @media print {
+              body { margin: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          ${printContent.innerHTML}
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+
+    // Wait for content to load (especially KaTeX)
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 500);
+  };
+
   return (
     <Card className="relative overflow-hidden shadow-xl">
-      <div className="absolute top-4 right-4 z-10">
+      <style jsx global>{`
+        @media print {
+          /* This will be used if user prints directly from browser */
+          body * {
+            visibility: hidden;
+          }
+          #printable-study-guide,
+          #printable-study-guide * {
+            visibility: visible;
+          }
+          #printable-study-guide {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+        }
+      `}</style>
+
+      <div className="absolute top-4 right-4 z-10 flex gap-2 no-print">
+        <button
+          onClick={handlePrint}
+          className="flex items-center gap-2 px-4 py-2 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-lg shadow-md hover:shadow-lg transition-all border border-gray-200 dark:border-gray-700"
+          aria-label="Print to PDF"
+        >
+          <Printer className="h-4 w-4" />
+          <span className="text-sm font-medium">Print</span>
+        </button>
+
         <button
           onClick={handleCopy}
           className="flex items-center gap-2 px-4 py-2 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-lg shadow-md hover:shadow-lg transition-all border border-gray-200 dark:border-gray-700"
@@ -46,7 +170,7 @@ export function StudyGuideViewer({ content }: StudyGuideViewerProps) {
         </button>
       </div>
 
-      <div className="p-12">
+      <div id="printable-study-guide" className="p-12 print-container">
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2 text-foreground">Study Guide</h1>
           <p className="text-gray-500">
@@ -54,7 +178,7 @@ export function StudyGuideViewer({ content }: StudyGuideViewerProps) {
           </p>
         </div>
 
-        <div className="prose prose-lg dark:prose-invert max-w-none">
+        <div className="prose prose-lg dark:prose-invert max-w-none print:prose-print">
           <ReactMarkdown
             remarkPlugins={[remarkGfm, remarkMath]}
             rehypePlugins={[rehypeKatex]}

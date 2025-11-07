@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { StudyGuideViewer } from '@/components/study-guide-viewer';
-import { DownloadButtons } from '@/components/download-buttons';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, ArrowLeft, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -194,23 +193,9 @@ export default function ResultPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="mb-8"
           key={activeTab}
         >
           <StudyGuideViewer content={getDisplayContent()} />
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="max-w-2xl mx-auto"
-        >
-          <DownloadButtons
-            content={getDisplayContent()}
-            sessionId={sessionId}
-            contentType={activeTab}
-          />
         </motion.div>
       </main>
     </div>
