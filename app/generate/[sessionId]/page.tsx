@@ -151,6 +151,7 @@ export default function GeneratePage() {
             descriptions={session.descriptions}
             step={currentStep}
             studyGuide={session.studyGuide}
+            config={session.config}
             onComplete={handleComplete}
             onError={handleError}
           />

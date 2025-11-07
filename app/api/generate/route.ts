@@ -1,11 +1,52 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest } from 'next/server';
+import type { StudyGuideConfig } from '@/types';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-const STEP_1_SYSTEM_PROMPT = `You are an expert educational AI that creates practice study materials.
+// Helper function to build step 1 prompt with config
+function buildStep1Prompt(config?: StudyGuideConfig): string {
+  const questionCount = config?.questionCount || 15;
+  const difficulty = config?.difficulty || 'match';
+  const focusPoints = config?.focusPoints?.trim();
+  const curriculum = config?.curriculum?.trim();
+  const gradeLevel = config?.gradeLevel?.trim();
+  const additionalInstructions = config?.additionalInstructions?.trim();
+
+  let difficultyGuidance = '';
+  if (difficulty === 'easier') {
+    difficultyGuidance = 'Make the questions SLIGHTLY EASIER than the original materials, while staying within the same concepts.';
+  } else if (difficulty === 'harder') {
+    difficultyGuidance = 'Make the questions SLIGHTLY HARDER than the original materials, but still within the bounds of the provided concepts.';
+  } else {
+    difficultyGuidance = 'Match the difficulty level of the original materials.';
+  }
+
+  let contextSection = '';
+  if (curriculum || gradeLevel) {
+    contextSection = '\n\nContext:\n';
+    if (gradeLevel) {
+      contextSection += `- Target audience: ${gradeLevel} students\n`;
+    }
+    if (curriculum) {
+      contextSection += `- Curriculum: ${curriculum}\n`;
+    }
+    contextSection += 'Align question style and expectations accordingly.\n';
+  }
+
+  let focusSection = '';
+  if (focusPoints) {
+    focusSection = `\n\nFOCUS AREAS:\nEmphasize these specific topics in your questions:\n${focusPoints}\n\nEnsure at least 60% of questions target these focus areas while still maintaining coverage of other important concepts from the materials.\n`;
+  }
+
+  let additionalSection = '';
+  if (additionalInstructions) {
+    additionalSection = `\n\nADDITIONAL REQUIREMENTS:\n${additionalInstructions}\n`;
+  }
+
+  return `You are an expert educational AI that creates practice study materials.
 
 Your task (Step 1 - Questions Only):
 1. Analyze the provided images (student notes and past quiz questions)
@@ -15,18 +56,51 @@ Your task (Step 1 - Questions Only):
    - Difficulty level and complexity
    - Learning objectives being tested
 3. Generate a NEW study guide with:
-   - 15-20 practice questions ONLY (NO ANSWERS)
-   - Same difficulty level as originals
-   - Same topics/concepts covered
+   - EXACTLY ${questionCount} practice questions ONLY (NO ANSWERS)
+   - ${difficultyGuidance}
+   - Same topics/concepts covered in the materials
    - Different questions (not copies)
    - Clear, well-formatted layout
    - Leave space for answers to be filled in later
 4. Use code execution if needed to analyze question patterns
-5. Format the final output as a complete study guide with sections
+5. Format the final output as a complete study guide with sections${contextSection}${focusSection}${additionalSection}
+
+CRITICAL CONSTRAINT - Stay Within Bounds:
+You must operate STRICTLY within the bounds of the provided materials:
+- Use ONLY concepts, terminology, and knowledge present in the uploaded notes and assignments
+- Match the depth and complexity of the original content - do not go deeper or introduce advanced topics
+- Do not introduce concepts, frameworks, or vocabulary not covered in the materials
+- If the notes are introductory-level, keep questions at that introductory level
+- Maintain the same domain vocabulary and notation style used in the original materials
+- The questions should feel like a natural continuation of what the student has already studied
 
 IMPORTANT: DO NOT include answers in this step. Only generate the questions.`;
+}
 
-const STEP_2_SYSTEM_PROMPT = `You are an expert educational AI that creates answer sheets for study materials.
+// Helper function to build step 2 prompt with config
+function buildStep2Prompt(config?: StudyGuideConfig): string {
+  const curriculum = config?.curriculum?.trim();
+  const gradeLevel = config?.gradeLevel?.trim();
+  const additionalInstructions = config?.additionalInstructions?.trim();
+
+  let contextSection = '';
+  if (curriculum || gradeLevel) {
+    contextSection = '\n\nContext:\n';
+    if (gradeLevel) {
+      contextSection += `- Target audience: ${gradeLevel} students\n`;
+    }
+    if (curriculum) {
+      contextSection += `- Curriculum: ${curriculum}\n`;
+    }
+    contextSection += 'Align answer depth and explanations accordingly.\n';
+  }
+
+  let additionalSection = '';
+  if (additionalInstructions) {
+    additionalSection = `\n\nADDITIONAL REQUIREMENTS:\n${additionalInstructions}\n`;
+  }
+
+  return `You are an expert educational AI that creates answer sheets for study materials.
 
 Your task (Step 2 - Answer Sheet):
 1. You will receive a study guide with practice questions
@@ -35,7 +109,15 @@ Your task (Step 2 - Answer Sheet):
    - Step-by-step solutions where applicable
    - Explanations of key concepts
    - Clear formatting that matches the question numbers
-3. Format the answer sheet to be used alongside the study guide
+3. Format the answer sheet to be used alongside the study guide${contextSection}${additionalSection}
+
+CRITICAL CONSTRAINT - Stay Within Bounds:
+Provide answers using ONLY knowledge and concepts evident in the original uploaded materials:
+- Do not introduce new concepts, theories, or advanced techniques not present in the notes
+- Match the explanation depth to what was taught in the materials
+- Use the same terminology and notation style from the original content
+- If a question seems to require information beyond the provided materials, acknowledge this and work within the available scope
+- The answers should align with the level of understanding demonstrated in the student's notes
 
 IMPORTANT - Visual/Graphical Questions:
 For questions that require visualization, diagrams, graphs, or drawings:
@@ -86,10 +168,11 @@ Complete examples:
 - "Water ($H_2O$) reacts with carbon dioxide ($CO_2$) in photosynthesis."
 
 Be thorough in your thinking process - the student will see your extended thinking in real-time.`;
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const { images, descriptions, step, studyGuide } = await request.json();
+    const { images, descriptions, step, studyGuide, config } = await request.json();
 
     if (!images || !Array.isArray(images)) {
       return new Response('Invalid request: images array required', {
@@ -98,6 +181,16 @@ export async function POST(request: NextRequest) {
     }
 
     const generationStep = step || 1;
+    const studyGuideConfig: StudyGuideConfig | undefined = config;
+
+    // Validate config if provided
+    if (studyGuideConfig) {
+      if (studyGuideConfig.questionCount < 1 || studyGuideConfig.questionCount > 30) {
+        return new Response('Invalid request: questionCount must be between 1 and 30', {
+          status: 400,
+        });
+      }
+    }
 
     // Create message content based on step
     let messageContent: Anthropic.MessageParam['content'];
@@ -123,7 +216,7 @@ export async function POST(request: NextRequest) {
           },
         })),
       ];
-      systemPrompt = STEP_1_SYSTEM_PROMPT;
+      systemPrompt = buildStep1Prompt(studyGuideConfig);
     } else {
       // Step 2: Generate answers based on study guide
       if (!studyGuide) {
@@ -137,7 +230,7 @@ export async function POST(request: NextRequest) {
           text: `Here is the study guide with practice questions:\n\n${studyGuide}\n\nPlease generate a complete answer sheet with detailed answers for all questions.`,
         },
       ];
-      systemPrompt = STEP_2_SYSTEM_PROMPT;
+      systemPrompt = buildStep2Prompt(studyGuideConfig);
     }
 
     // Create streaming response

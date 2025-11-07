@@ -146,6 +146,45 @@ export default function ResultPage() {
               </div>
             )}
           </div>
+
+          {/* Config Metadata */}
+          {session.config && (
+            <div className="mt-6 max-w-2xl mx-auto">
+              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+                <h3 className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-3">
+                  Generation Settings
+                </h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Question Count:</span>{' '}
+                    <span className="font-medium">{session.config.questionCount}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Difficulty:</span>{' '}
+                    <span className="font-medium capitalize">{session.config.difficulty}</span>
+                  </div>
+                  {session.config.gradeLevel && (
+                    <div>
+                      <span className="text-gray-500 dark:text-gray-400">Grade Level:</span>{' '}
+                      <span className="font-medium">{session.config.gradeLevel}</span>
+                    </div>
+                  )}
+                  {session.config.curriculum && (
+                    <div>
+                      <span className="text-gray-500 dark:text-gray-400">Curriculum:</span>{' '}
+                      <span className="font-medium">{session.config.curriculum}</span>
+                    </div>
+                  )}
+                  {session.config.focusPoints && (
+                    <div className="col-span-2">
+                      <span className="text-gray-500 dark:text-gray-400">Focus Points:</span>{' '}
+                      <span className="font-medium">{session.config.focusPoints}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </motion.div>
 
         {/* Tab Navigation */}

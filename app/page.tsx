@@ -39,8 +39,8 @@ export default function Home() {
       // Create session in IndexedDB
       const session = await createSession(base64Images, descriptions);
 
-      // Navigate to generation page
-      router.push(`/generate/${session.id}`);
+      // Navigate to config page instead of generation page
+      router.push(`/config/${session.id}`);
     } catch (error) {
       console.error('Error creating session:', error);
       alert('Failed to start generation. Please try again.');
@@ -89,10 +89,10 @@ export default function Home() {
             className="px-12 py-6 text-lg rounded-full shadow-lg hover:shadow-xl transition-all"
           >
             {isGenerating ? (
-              'Starting Generation...'
+              'Proceeding to Configuration...'
             ) : (
               <>
-                Generate Study Guide
+                Next: Configure
                 <ArrowRight className="ml-2 h-5 w-5" />
               </>
             )}

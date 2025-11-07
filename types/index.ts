@@ -27,6 +27,7 @@ export interface Session {
   currentStep?: GenerationStep; // Current generation step
   errorMessage?: string;
   completedAt?: number;
+  config?: StudyGuideConfig; // Configuration for study guide generation
 }
 
 export interface StreamEvent {
@@ -44,4 +45,13 @@ export interface ImageUpload {
   file: File;
   preview: string;
   description?: string;
+}
+
+export interface StudyGuideConfig {
+  questionCount: number;
+  focusPoints: string;
+  curriculum?: string;
+  gradeLevel?: string;
+  difficulty: 'match' | 'easier' | 'harder';
+  additionalInstructions?: string;
 }

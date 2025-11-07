@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { StepCard } from './step-card';
 import { ThinkingBlock } from './thinking-block';
 import { Progress } from '@/components/ui/progress';
-import type { Step } from '@/types';
+import type { Step, StudyGuideConfig } from '@/types';
 
 interface AgenticViewerProps {
   sessionId: string;
@@ -12,6 +12,7 @@ interface AgenticViewerProps {
   descriptions: string[];
   step?: 1 | 2;
   studyGuide?: string;
+  config?: StudyGuideConfig;
   onComplete: (result: string) => void;
   onError: (error: string) => void;
 }
@@ -22,6 +23,7 @@ export function AgenticViewer({
   descriptions,
   step = 1,
   studyGuide,
+  config,
   onComplete,
   onError,
 }: AgenticViewerProps) {
@@ -55,6 +57,7 @@ export function AgenticViewer({
             descriptions,
             step,
             studyGuide,
+            config,
           }),
         });
 
@@ -187,6 +190,16 @@ export function AgenticViewer({
           <span className="text-sm text-gray-500">{Math.round(progress)}%</span>
         </div>
         <Progress value={progress} className="h-2" />
+
+        {/* Config Summary */}
+        {config && step === 1 && (
+          <div className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+            Generating {config.questionCount} questions
+            {config.focusPoints && ` • Focus: ${config.focusPoints.substring(0, 50)}${config.focusPoints.length > 50 ? '...' : ''}`}
+            {config.curriculum && ` • ${config.curriculum}`}
+            {config.gradeLevel && ` • ${config.gradeLevel}`}
+          </div>
+        )}
       </div>
 
       {/* Steps Container */}
