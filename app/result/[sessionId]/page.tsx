@@ -120,8 +120,11 @@ export default function ResultPage() {
           className="text-center mb-12"
         >
           <div className="flex items-center justify-center gap-3">
-            <h1 className="text-4xl font-bold">Study Materials Ready</h1>
-            <span className="inline-block w-2 h-8 bg-[#C8A8E3] animate-pulse" />
+            <h1 className="text-4xl font-bold inline-block">
+              <span className="inline-block overflow-hidden whitespace-nowrap border-r-4 border-[#C8A8E3] pr-1 animate-[typing_2s_steps(22)_1s_1_normal_both,blink_0.75s_step-end_infinite]">
+                Study Materials Ready
+              </span>
+            </h1>
           </div>
         </motion.div>
 
