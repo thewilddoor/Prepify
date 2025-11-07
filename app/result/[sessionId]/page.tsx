@@ -1,0 +1,157 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import { StudyGuideViewer } from '@/components/study-guide-viewer';
+import { DownloadButtons } from '@/components/download-buttons';
+import { Button } from '@/components/ui/button';
+import { CheckCircle, ArrowLeft, Plus } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { getSession } from '@/lib/db';
+import type { Session } from '@/types';
+
+export default function ResultPage() {
+  const params = useParams();
+  const router = useRouter();
+  const sessionId = params?.sessionId as string;
+
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadSession = async () => {
+      try {
+        const loadedSession = await getSession(sessionId);
+
+        if (!loadedSession) {
+          setError('Session not found');
+          setIsLoading(false);
+          return;
+        }
+
+        if (loadedSession.status !== 'complete' || !loadedSession.result) {
+          setError('Study guide not ready');
+          setIsLoading(false);
+          return;
+        }
+
+        setSession(loadedSession);
+      } catch (err) {
+        console.error('Error loading session:', err);
+        setError('Failed to load session');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (sessionId) {
+      loadSession();
+    }
+  }, [sessionId]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-[#0A0A0A] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-custom mx-auto mb-4"></div>
+          <p className="text-lg text-gray-600 dark:text-gray-400">
+            Loading results...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !session) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-[#0A0A0A] flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <h2 className="text-2xl font-bold mb-4">Error</h2>
+          <p className="text-lg text-gray-600 dark:text-gray-400 mb-8">
+            {error || 'Session not found'}
+          </p>
+          <Button onClick={() => router.push('/')}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Home
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const generationTime = session.completedAt
+    ? Math.round((session.completedAt - session.timestamp) / 1000)
+    : 0;
+
+  const questionCount = (session.result?.match(/\d+\./g) || []).length;
+
+  return (
+    <div className="min-h-screen bg-white dark:bg-[#0A0A0A]">
+      <main className="max-w-6xl mx-auto px-8 py-8">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="mb-8"
+        >
+          <Button
+            variant="ghost"
+            onClick={() => router.push('/')}
+            className="mb-4"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            New Session
+          </Button>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="text-center mb-12"
+        >
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <CheckCircle className="h-12 w-12 text-green-500" />
+            <h1 className="text-4xl font-bold">Study Guide Ready</h1>
+          </div>
+
+          <div className="flex items-center justify-center gap-8 text-sm text-gray-600 dark:text-gray-400">
+            <div>
+              <span className="font-medium">Generated in</span>{' '}
+              <span className="text-purple-custom font-semibold">
+                {generationTime} seconds
+              </span>
+            </div>
+            {questionCount > 0 && (
+              <div>
+                <span className="font-medium">Questions</span>{' '}
+                <span className="text-purple-custom font-semibold">
+                  {questionCount}
+                </span>
+              </div>
+            )}
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="mb-8"
+        >
+          <StudyGuideViewer content={session.result!} />
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+          className="max-w-2xl mx-auto"
+        >
+          <DownloadButtons content={session.result!} sessionId={sessionId} />
+        </motion.div>
+      </main>
+    </div>
+  );
+}
