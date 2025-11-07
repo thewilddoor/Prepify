@@ -119,53 +119,16 @@ Provide answers using ONLY knowledge and concepts evident in the original upload
 - If a question seems to require information beyond the provided materials, acknowledge this and work within the available scope
 - The answers should align with the level of understanding demonstrated in the student's notes
 
-IMPORTANT - Visual/Graphical Questions:
-For questions that require visualization, diagrams, graphs, or drawings:
-- DO NOT attempt to create ASCII art or text-based diagrams
-- Instead, provide clear, accurate TEXT DESCRIPTIONS of what should be visualized
-- Describe key features, relationships, and important details in words
-- Example: Instead of drawing a graph, describe: "The graph shows a parabola opening upward with vertex at (0, -4), x-intercepts at (-2, 0) and (2, 0), and y-intercept at (0, -4)"
-- For molecular structures, describe the arrangement: "The molecule has a tetrahedral geometry with carbon at the center bonded to four hydrogen atoms"
-- For diagrams, explain the components and their relationships clearly in prose
+FORMATTING RULES:
 
-IMPORTANT - Mathematical Content:
-When including mathematical equations, formulas, or expressions, ALWAYS use LaTeX notation:
+1. LaTeX for equations/symbols ONLY:
+   - Use $...$ inline (same line): $E = mc^2$, $H_2O$, $\\alpha$
+   - Use $$...$$ for display (same line): $$x = \\frac{-b \\pm \\sqrt{b^2}}{2a}$$
+   - DO NOT use LaTeX for diagrams, graphs, or spatial layouts
 
-**For inline math (within text):** Use single dollar signs on the SAME LINE
-- Examples: $E = mc^2$, $\\alpha + \\beta$, $H_2O$, $Al^{3+}$, $Cl^-$
-
-**For display math (standalone equations):** Use double dollar signs on the SAME LINE
-- Examples: $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$, $$\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}$$
-
-CRITICAL FORMATTING RULES:
-1. Inline math: Keep $...$ on the SAME line as surrounding text
-   ✓ CORRECT: "Water ($H_2O$) consists of hydrogen and oxygen"
-   ✗ WRONG: "Water (
-   $H_2O$
-   ) consists of hydrogen and oxygen"
-
-2. Display math: Keep $$...$$ entirely on ONE line
-   ✓ CORRECT: $$E = mc^2$$
-   ✗ WRONG: $$
-   E = mc^2
-   $$
-
-Use LaTeX for ALL mathematical/chemical content:
-- Equations: $F = ma$, $\\Delta E = mc^2$
-- Fractions: $\\frac{a}{b}$, $\\frac{dy}{dx}$
-- Greek letters: $\\alpha$, $\\beta$, $\\gamma$, $\\Delta$, $\\theta$, $\\pi$
-- Superscripts/subscripts: $x_i^2$, $a_n$, $2^{10}$
-- Integrals/sums: $\\int_a^b f(x)dx$, $\\sum_{i=1}^n a_i$
-- Roots: $\\sqrt{x}$, $\\sqrt[3]{x}$
-- Ions: $Na^+$, $Ca^{2+}$, $O^{2-}$, $Al^{3+}$, $Cl^-$
-- Chemical formulas: $H_2O$, $CO_2$, $C_6H_{12}O_6$, $NaCl$, $MgCl_2$
-- Chemical compounds: $AlCl_3$, $CaCO_3$, $H_2SO_4$
-
-Complete examples:
-- "Aluminum forms $Al^{3+}$ ions and chlorine forms $Cl^-$ ions."
-- "The quadratic formula is $x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$"
-- "Calculate: $$\\frac{d}{dx}(x^2 + 3x) = 2x + 3$$"
-- "Water ($H_2O$) reacts with carbon dioxide ($CO_2$) in photosynthesis."
+2. Diagrams as text descriptions:
+   - Provide clear written descriptions instead of visual representations
+   - Example: "The graph shows a parabola opening upward with vertex at (0, -4)"
 
 Be thorough in your thinking process - the student will see your extended thinking in real-time.`;
 }
