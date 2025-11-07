@@ -171,15 +171,8 @@ export function StudyGuideViewer({ content }: StudyGuideViewerProps) {
       </div>
 
       {/* Content - Centered with equal margins */}
-      <div className="mx-auto max-w-4xl px-8 py-16">
+      <div className="mx-auto max-w-4xl px-8 py-8">
         <div id="printable-study-guide" className="print-container">
-          <div className="mb-12">
-            <h1 className="text-3xl font-semibold mb-2 text-foreground">Study Guide</h1>
-            <p className="text-sm text-muted-foreground">
-              Generated on {new Date().toLocaleDateString()}
-            </p>
-          </div>
-
         <div className="prose prose-lg dark:prose-invert max-w-none print:prose-print">
           <ReactMarkdown
             remarkPlugins={[remarkGfm, remarkMath]}

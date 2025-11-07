@@ -74,6 +74,17 @@ You must operate STRICTLY within the bounds of the provided materials:
 - Maintain the same domain vocabulary and notation style used in the original materials
 - The questions should feel like a natural continuation of what the student has already studied
 
+FORMATTING RULES:
+
+1. LaTeX for equations/symbols ONLY:
+   - Use $...$ inline (same line): $E = mc^2$, $H_2O$, $\\alpha$
+   - Use $$...$$ for display (same line): $$x = \\frac{-b \\pm \\sqrt{b^2}}{2a}$$
+   - DO NOT use LaTeX for diagrams, graphs, or spatial layouts
+
+2. Diagrams as text descriptions:
+   - Provide clear written descriptions instead of visual representations
+   - Example: "The graph shows a parabola opening upward with vertex at (0, -4)"
+
 IMPORTANT: DO NOT include answers in this step. Only generate the questions.`;
 }
 

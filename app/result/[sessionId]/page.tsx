@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { StudyGuideViewer } from '@/components/study-guide-viewer';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, ArrowLeft, Plus } from 'lucide-react';
+import { ArrowLeft, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getSession } from '@/lib/db';
 import type { Session } from '@/types';
@@ -80,12 +80,6 @@ export default function ResultPage() {
     );
   }
 
-  const generationTime = session.completedAt
-    ? Math.round((session.completedAt - session.timestamp) / 1000)
-    : 0;
-
-  const questionCount = (session.studyGuide?.match(/\d+\./g) || []).length;
-
   // Determine what content to display
   const getDisplayContent = () => {
     switch (activeTab) {
@@ -125,66 +119,10 @@ export default function ResultPage() {
           transition={{ duration: 0.5 }}
           className="text-center mb-12"
         >
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <CheckCircle className="h-12 w-12 text-green-500" />
+          <div className="flex items-center justify-center gap-3">
             <h1 className="text-4xl font-bold">Study Materials Ready</h1>
+            <span className="inline-block w-2 h-8 bg-[#C8A8E3] animate-pulse" />
           </div>
-
-          <div className="flex items-center justify-center gap-8 text-sm text-gray-600 dark:text-gray-400">
-            <div>
-              <span className="font-medium">Generated in</span>{' '}
-              <span className="text-purple-custom font-semibold">
-                {generationTime} seconds
-              </span>
-            </div>
-            {questionCount > 0 && (
-              <div>
-                <span className="font-medium">Questions</span>{' '}
-                <span className="text-purple-custom font-semibold">
-                  {questionCount}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Config Metadata */}
-          {session.config && (
-            <div className="mt-6 max-w-2xl mx-auto">
-              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
-                <h3 className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 mb-3">
-                  Generation Settings
-                </h3>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">Question Count:</span>{' '}
-                    <span className="font-medium">{session.config.questionCount}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">Difficulty:</span>{' '}
-                    <span className="font-medium capitalize">{session.config.difficulty}</span>
-                  </div>
-                  {session.config.gradeLevel && (
-                    <div>
-                      <span className="text-gray-500 dark:text-gray-400">Grade Level:</span>{' '}
-                      <span className="font-medium">{session.config.gradeLevel}</span>
-                    </div>
-                  )}
-                  {session.config.curriculum && (
-                    <div>
-                      <span className="text-gray-500 dark:text-gray-400">Curriculum:</span>{' '}
-                      <span className="font-medium">{session.config.curriculum}</span>
-                    </div>
-                  )}
-                  {session.config.focusPoints && (
-                    <div className="col-span-2">
-                      <span className="text-gray-500 dark:text-gray-400">Focus Points:</span>{' '}
-                      <span className="font-medium">{session.config.focusPoints}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
         </motion.div>
 
         {/* Tab Navigation */}

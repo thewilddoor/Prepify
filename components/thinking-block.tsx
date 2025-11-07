@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { BreathingDot } from './breathing-dot'
 
 interface ThinkingBlockProps {
   content: string
@@ -44,23 +43,11 @@ export function ThinkingBlock({ content, isStreaming = false }: ThinkingBlockPro
   }
 
   return (
-    <div className="flex gap-6 py-4">
-      {/* Left: Vertical line with breathing dot */}
-      <div className="flex flex-col items-center">
-        <BreathingDot isActive={isStreaming} />
-        <div className="w-px flex-1 bg-gradient-to-b from-[#DAC2EF] to-transparent mt-2" />
-      </div>
-
-      {/* Right: Content area */}
-      <div className="flex-1 min-w-0">
-        <div className="mb-3">
-          <span className="text-sm font-medium text-[#DAC2EF]">Extended Thinking</span>
-        </div>
-
-        <div
-          ref={contentRef}
-          className="prose prose-sm dark:prose-invert max-w-none overflow-y-auto max-h-96 pr-4"
-        >
+    <div className="mt-3">
+      <div
+        ref={contentRef}
+        className="prose prose-sm dark:prose-invert max-w-none overflow-y-auto max-h-96 pr-4"
+      >
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
@@ -118,10 +105,9 @@ export function ThinkingBlock({ content, isStreaming = false }: ThinkingBlockPro
             {displayedContent}
           </ReactMarkdown>
           {isStreaming && (
-            <span className="inline-block w-1.5 h-4 bg-[#DAC2EF] ml-1 animate-pulse" />
+            <span className="inline-block w-1.5 h-4 bg-[#C8A8E3] ml-1 animate-pulse" />
           )}
         </div>
-      </div>
     </div>
   )
 }

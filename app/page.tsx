@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { UploadZone } from '@/components/upload-zone';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, NotebookPen } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { ImageUpload } from '@/types';
 import { createSession, fileToBase64 } from '@/lib/session';
@@ -58,13 +58,13 @@ export default function Home() {
           className="text-center mb-16"
         >
           <div className="flex items-center justify-center gap-3 mb-4">
-            <Sparkles className="h-8 w-8 text-purple-custom" />
+            <NotebookPen className="h-8 w-8" style={{ color: '#C8A8E3' }} />
             <h1 className="text-5xl font-bold tracking-tight">
-              Assignment Prep AI
+              Prepify
             </h1>
           </div>
           <p className="text-2xl text-gray-600 dark:text-gray-400">
-            Transform notes into practice materials
+            Turns your unit notes and handouts into personalized study guides
           </p>
         </motion.div>
 
