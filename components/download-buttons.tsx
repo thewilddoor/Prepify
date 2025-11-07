@@ -7,9 +7,10 @@ import { FileDown, Loader2 } from 'lucide-react';
 interface DownloadButtonsProps {
   content: string;
   sessionId: string;
+  contentType?: 'questions' | 'answers' | 'combined';
 }
 
-export function DownloadButtons({ content, sessionId }: DownloadButtonsProps) {
+export function DownloadButtons({ content, sessionId, contentType = 'combined' }: DownloadButtonsProps) {
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [isDownloadingDocx, setIsDownloadingDocx] = useState(false);
 
@@ -37,11 +38,17 @@ export function DownloadButtons({ content, sessionId }: DownloadButtonsProps) {
       // Get the blob from response
       const blob = await response.blob();
 
-      // Create download link
+      // Create download link with appropriate filename
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `study-guide-${sessionId}.${format}`;
+
+      // Generate filename based on content type
+      const filePrefix = contentType === 'questions' ? 'study-guide' :
+                         contentType === 'answers' ? 'answer-sheet' :
+                         'study-materials';
+      a.download = `${filePrefix}-${sessionId}.${format}`;
+
       document.body.appendChild(a);
       a.click();
 

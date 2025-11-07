@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jsPDF from 'jspdf';
+import 'svg2pdf.js';
 import autoTable from 'jspdf-autotable';
 import MarkdownIt from 'markdown-it';
 import { mathjax } from 'mathjax-full/js/mathjax.js';
@@ -7,7 +8,7 @@ import { TeX } from 'mathjax-full/js/input/tex.js';
 import { SVG } from 'mathjax-full/js/output/svg.js';
 import { liteAdaptor } from 'mathjax-full/js/adaptors/liteAdaptor.js';
 import { RegisterHTMLHandler } from 'mathjax-full/js/handlers/html.js';
-import { createCanvas, loadImage } from 'canvas';
+import { JSDOM } from 'jsdom';
 
 // Initialize markdown parser
 const md = new MarkdownIt();
@@ -23,6 +24,15 @@ interface LatexEquation {
   placeholder: string;
 }
 
+// SVG equation data structure
+interface EquationSVGData {
+  svgString: string;
+  svgElement: SVGSVGElement;
+  widthPx: number;
+  heightPx: number;
+  isDisplay: boolean;
+}
+
 // Convert LaTeX to SVG using MathJax
 async function latexToSvg(latex: string, isDisplay: boolean = false): Promise<string> {
   try {
@@ -31,39 +41,72 @@ async function latexToSvg(latex: string, isDisplay: boolean = false): Promise<st
     const html = mathjax.document('', { InputJax: tex, OutputJax: svg });
 
     const node = html.convert(latex, { display: isDisplay });
-    return adaptor.outerHTML(node);
+    let svgHtml = adaptor.outerHTML(node);
+
+    // MathJax wraps SVG in mjx-container, extract the SVG element
+    // First try to extract from the full HTML
+    const svgMatch = svgHtml.match(/<svg[^>]*>[\s\S]*?<\/svg>/);
+    if (svgMatch) {
+      return svgMatch[0];
+    }
+
+    // If that didn't work, log what we got and throw
+    console.error('Could not extract SVG from MathJax output for:', latex);
+    console.error('MathJax output:', svgHtml.substring(0, 500));
+    throw new Error('Failed to extract SVG from MathJax output');
   } catch (error) {
-    console.error('LaTeX to SVG conversion error:', error);
+    console.error('LaTeX to SVG conversion error for latex:', latex, error);
     throw error;
   }
 }
 
-// Convert SVG to PNG data URL
-async function svgToPng(svgString: string, width: number = 400): Promise<string> {
+// Parse SVG string to SVG element and extract dimensions for PDF embedding
+async function prepareSvgForPdf(svgString: string, isDisplay: boolean = false): Promise<EquationSVGData> {
   try {
-    // Extract SVG dimensions if present
+    // Create a DOM environment using JSDOM with SVG support
+    const dom = new JSDOM(
+      `<!DOCTYPE html><html><body>${svgString}</body></html>`,
+      {
+        contentType: 'text/html',
+      }
+    );
+    const document = dom.window.document;
+
+    // Get the SVG element
+    const svgElement = document.querySelector('svg') as unknown as SVGSVGElement;
+
+    if (!svgElement) {
+      throw new Error('No SVG element found in the provided string');
+    }
+
+    // Extract SVG dimensions (these are in 'ex' units from MathJax)
     const widthMatch = svgString.match(/width="([\d.]+)ex"/);
     const heightMatch = svgString.match(/height="([\d.]+)ex"/);
 
-    const svgWidth = widthMatch ? parseFloat(widthMatch[1]) * 10 : width;
-    const svgHeight = heightMatch ? parseFloat(heightMatch[1]) * 10 : width * 0.3;
+    let originalWidth = 10; // default
+    let originalHeight = 2; // default
 
-    // Create a data URL for the SVG
-    const svgDataUrl = 'data:image/svg+xml;base64,' +
-      Buffer.from(svgString).toString('base64');
+    if (widthMatch && heightMatch) {
+      originalWidth = parseFloat(widthMatch[1]);
+      originalHeight = parseFloat(heightMatch[1]);
+    }
 
-    // Create canvas
-    const canvas = createCanvas(Math.ceil(svgWidth), Math.ceil(svgHeight));
-    const ctx = canvas.getContext('2d');
+    // Convert 'ex' units to millimeters for PDF (jsPDF uses mm by default)
+    // 1ex ≈ 0.5em ≈ 8-10 pixels ≈ 2-3mm at normal text size
+    // For inline math, use smaller scale; for display math, slightly larger
+    const scale = isDisplay ? 0.8 : 0.65; // Scale to mm for PDF
+    const widthMm = originalWidth * scale;
+    const heightMm = originalHeight * scale;
 
-    // Load and draw SVG
-    const img = await loadImage(svgDataUrl);
-    ctx.drawImage(img, 0, 0, svgWidth, svgHeight);
-
-    // Return as PNG data URL
-    return canvas.toDataURL('image/png');
+    return {
+      svgString,
+      svgElement,
+      widthPx: widthMm,
+      heightPx: heightMm,
+      isDisplay,
+    };
   } catch (error) {
-    console.error('SVG to PNG conversion error:', error);
+    console.error('SVG preparation error:', error);
     throw error;
   }
 }
@@ -76,7 +119,7 @@ function extractLatexEquations(markdown: string): { equations: LatexEquation[]; 
 
   // Extract display math ($$...$$) first
   processedMarkdown = processedMarkdown.replace(/\$\$([\s\S]*?)\$\$/g, (match, latex) => {
-    const placeholder = `__EQUATION_${equationIndex}__`;
+    const placeholder = `<<<EQUATION_${equationIndex}>>>`;
     equations.push({
       latex: latex.trim(),
       isDisplay: true,
@@ -88,7 +131,7 @@ function extractLatexEquations(markdown: string): { equations: LatexEquation[]; 
 
   // Extract inline math ($...$) - avoid matching placeholders
   processedMarkdown = processedMarkdown.replace(/(?<!\$)\$(?!\$)(.*?)(?<!\$)\$(?!\$)/g, (match, latex) => {
-    const placeholder = `__EQUATION_${equationIndex}__`;
+    const placeholder = `<<<EQUATION_${equationIndex}>>>`;
     equations.push({
       latex: latex.trim(),
       isDisplay: false,
@@ -286,26 +329,26 @@ async function renderPDF(content: string): Promise<jsPDF> {
   // Extract and convert LaTeX equations first
   const { equations, processedMarkdown } = extractLatexEquations(content);
 
-  // Convert all equations to PNG in parallel
-  const equationImages: Map<string, string> = new Map();
+  // Convert all equations to SVG in parallel
+  const equationImages: Map<string, EquationSVGData> = new Map();
 
   try {
     const renderedEquations = await Promise.all(
       equations.map(async (eq) => {
         try {
           const svg = await latexToSvg(eq.latex, eq.isDisplay);
-          const png = await svgToPng(svg, eq.isDisplay ? 400 : 200);
-          return { placeholder: eq.placeholder, png, isDisplay: eq.isDisplay };
+          const svgData = await prepareSvgForPdf(svg, eq.isDisplay);
+          return { placeholder: eq.placeholder, svgData, isDisplay: eq.isDisplay };
         } catch (error) {
           console.error(`Failed to render equation: ${eq.latex}`, error);
-          return { placeholder: eq.placeholder, png: null, isDisplay: eq.isDisplay };
+          return { placeholder: eq.placeholder, svgData: null, isDisplay: eq.isDisplay };
         }
       })
     );
 
-    for (const { placeholder, png } of renderedEquations) {
-      if (png) {
-        equationImages.set(placeholder, png);
+    for (const { placeholder, svgData } of renderedEquations) {
+      if (svgData) {
+        equationImages.set(placeholder, svgData);
       }
     }
   } catch (error) {
@@ -370,51 +413,135 @@ async function renderPDF(content: string): Promise<jsPDF> {
         break;
 
       case 'paragraph':
-        // Check if this paragraph contains equation placeholders
+        // Standardized paragraph rendering with equation support
         const paraContent = element.content || '';
-        const equationPlaceholders = paraContent.match(/__EQUATION_\d+__/g);
+        const hasEquations = /<<<EQUATION_\d+>>>/.test(paraContent);
 
-        if (equationPlaceholders) {
-          // Split content by equations and render each part
-          const parts = paraContent.split(/(__EQUATION_\d+__)/);
+        if (hasEquations) {
+          // Split content by equations
+          const parts = paraContent.split(/(<<<EQUATION_\d+>>>)/);
+          const lineHeight = 6;
+          let pendingText = '';
 
           for (const part of parts) {
-            if (part.match(/^__EQUATION_\d+__$/)) {
+            if (part.match(/^<<<EQUATION_\d+>>>$/)) {
               // This is an equation placeholder
-              const png = equationImages.get(part);
-              if (png) {
-                // Check if we need a new page
-                if (yPosition > pageHeight - 40) {
-                  pdf.addPage();
-                  yPosition = margins;
-                }
+              const equationData = equationImages.get(part);
+              const equation = equations.find(eq => eq.placeholder === part);
 
-                // Add equation image
-                const imgWidth = 60; // mm
-                const imgHeight = 15; // mm
-                pdf.addImage(png, 'PNG', margins, yPosition, imgWidth, imgHeight);
-                yPosition += imgHeight + 3;
-              } else {
-                // Fallback if image failed to render
-                pdf.text(`[Math: ${part}]`, margins, yPosition);
-                yPosition += 6;
-              }
-            } else if (part.trim()) {
-              // Regular text
-              const paraLines = pdf.splitTextToSize(part, maxWidth);
-              for (const line of paraLines) {
-                if (yPosition > pageHeight - 20) {
-                  pdf.addPage();
-                  yPosition = margins;
+              if (equationData) {
+                try {
+                  const { svgElement, widthPx, heightPx, isDisplay } = equationData;
+
+                  if (isDisplay) {
+                    // Display equation: render on its own line, centered
+                    // First, render any pending text
+                    if (pendingText.trim()) {
+                      const textLines = pdf.splitTextToSize(pendingText.trim(), maxWidth);
+                      for (const line of textLines) {
+                        if (yPosition > pageHeight - 20) {
+                          pdf.addPage();
+                          yPosition = margins;
+                        }
+                        pdf.text(line, margins, yPosition);
+                        yPosition += lineHeight;
+                      }
+                      pendingText = '';
+                    }
+
+                    // Add vertical spacing before display equation
+                    yPosition += 3;
+
+                    // Check if equation fits on current page
+                    if (yPosition + heightPx > pageHeight - 20) {
+                      pdf.addPage();
+                      yPosition = margins;
+                    }
+
+                    // Center the equation horizontally
+                    const xPosition = (pageWidth - widthPx) / 2;
+
+                    // Render the SVG equation
+                    await pdf.svg(svgElement, {
+                      x: xPosition,
+                      y: yPosition,
+                      width: widthPx,
+                      height: heightPx,
+                    });
+
+                    yPosition += heightPx + 3;
+
+                  } else {
+                    // Inline equation: For simplicity, render text with inline equations on same line
+                    // Since true inline SVG positioning is complex, we'll render the line with spacing
+                    if (pendingText.trim()) {
+                      const textLines = pdf.splitTextToSize(pendingText.trim(), maxWidth);
+                      for (const line of textLines) {
+                        if (yPosition > pageHeight - 20) {
+                          pdf.addPage();
+                          yPosition = margins;
+                        }
+                        pdf.text(line, margins, yPosition);
+                        yPosition += lineHeight;
+                      }
+                      pendingText = '';
+                    }
+
+                    // Render inline equation on its own line for now (standardized approach)
+                    if (yPosition + heightPx > pageHeight - 20) {
+                      pdf.addPage();
+                      yPosition = margins;
+                    }
+
+                    await pdf.svg(svgElement, {
+                      x: margins,
+                      y: yPosition,
+                      width: widthPx,
+                      height: heightPx,
+                    });
+
+                    yPosition += Math.max(heightPx, lineHeight);
+                  }
+                } catch (error) {
+                  console.error(`Error embedding SVG for placeholder ${part}:`, error);
+                  // Fallback: add text representation
+                  if (equation) {
+                    pendingText += ` [${equation.latex}] `;
+                  } else {
+                    pendingText += ` [Equation render error] `;
+                  }
                 }
-                pdf.text(line, margins, yPosition);
-                yPosition += 6;
+              } else {
+                // No equation data - add text fallback
+                console.error(`No equation data found for placeholder: ${part}`);
+                if (equation) {
+                  pendingText += ` [${equation.latex}] `;
+                } else {
+                  pendingText += ` [Math] `;
+                }
               }
+            } else if (part) {
+              // Regular text - accumulate
+              pendingText += part;
             }
           }
-          yPosition += 2;
+
+          // Render any remaining text
+          if (pendingText.trim()) {
+            const textLines = pdf.splitTextToSize(pendingText.trim(), maxWidth);
+            for (const line of textLines) {
+              if (yPosition > pageHeight - 20) {
+                pdf.addPage();
+                yPosition = margins;
+              }
+              pdf.text(line, margins, yPosition);
+              yPosition += lineHeight;
+            }
+          }
+
+          yPosition += 2; // Paragraph spacing
         } else {
-          // No equations, render normally
+          // No equations - standard text rendering
           const paraLines = pdf.splitTextToSize(paraContent, maxWidth);
           for (const line of paraLines) {
             if (yPosition > pageHeight - 20) {

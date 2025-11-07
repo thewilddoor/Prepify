@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getSession, updateSession } from '@/lib/db';
+import { saveStudyGuide, saveAnswerSheet } from '@/lib/session';
 import type { Session } from '@/types';
 
 export default function GeneratePage() {
@@ -17,6 +18,7 @@ export default function GeneratePage() {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
 
   useEffect(() => {
     const loadSession = async () => {
@@ -31,8 +33,13 @@ export default function GeneratePage() {
 
         setSession(loadedSession);
 
-        // Update session status to processing
-        await updateSession(sessionId, { status: 'processing' });
+        // Determine which step to start from
+        const step = loadedSession.currentStep || 1;
+        setCurrentStep(step as 1 | 2);
+
+        // Update session status based on step
+        const status = step === 1 ? 'processing_questions' : 'processing_answers';
+        await updateSession(sessionId, { status });
       } catch (err) {
         console.error('Error loading session:', err);
         setError('Failed to load session');
@@ -48,15 +55,23 @@ export default function GeneratePage() {
 
   const handleComplete = async (result: string) => {
     try {
-      // Update session with result
-      await updateSession(sessionId, {
-        status: 'complete',
-        result,
-        completedAt: Date.now(),
-      });
+      if (currentStep === 1) {
+        // Save study guide and prepare for step 2
+        await saveStudyGuide(sessionId, result);
 
-      // Navigate to result page
-      router.push(`/result/${sessionId}`);
+        // Reload session to get updated data
+        const updatedSession = await getSession(sessionId);
+        if (updatedSession) {
+          setSession(updatedSession);
+          setCurrentStep(2);
+        }
+      } else {
+        // Save answer sheet and complete
+        await saveAnswerSheet(sessionId, result);
+
+        // Navigate to result page
+        router.push(`/result/${sessionId}`);
+      }
     } catch (err) {
       console.error('Error completing session:', err);
       setError('Failed to save results');
@@ -128,11 +143,14 @@ export default function GeneratePage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.2 }}
+          key={currentStep}
         >
           <AgenticViewer
             sessionId={sessionId}
             images={session.images}
             descriptions={session.descriptions}
+            step={currentStep}
+            studyGuide={session.studyGuide}
             onComplete={handleComplete}
             onError={handleError}
           />

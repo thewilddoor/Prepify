@@ -5,9 +5,9 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-const SYSTEM_PROMPT = `You are an expert educational AI that creates practice study materials.
+const STEP_1_SYSTEM_PROMPT = `You are an expert educational AI that creates practice study materials.
 
-Your task:
+Your task (Step 1 - Questions Only):
 1. Analyze the provided images (student notes and past quiz questions)
 2. Identify:
    - Key topics and concepts
@@ -15,42 +15,81 @@ Your task:
    - Difficulty level and complexity
    - Learning objectives being tested
 3. Generate a NEW study guide with:
-   - 15-20 practice questions
+   - 15-20 practice questions ONLY (NO ANSWERS)
    - Same difficulty level as originals
    - Same topics/concepts covered
    - Different questions (not copies)
    - Clear, well-formatted layout
+   - Leave space for answers to be filled in later
 4. Use code execution if needed to analyze question patterns
 5. Format the final output as a complete study guide with sections
 
+IMPORTANT: DO NOT include answers in this step. Only generate the questions.`;
+
+const STEP_2_SYSTEM_PROMPT = `You are an expert educational AI that creates answer sheets for study materials.
+
+Your task (Step 2 - Answer Sheet):
+1. You will receive a study guide with practice questions
+2. Generate a complete answer sheet with:
+   - Detailed answers for each question
+   - Step-by-step solutions where applicable
+   - Explanations of key concepts
+   - Clear formatting that matches the question numbers
+3. Format the answer sheet to be used alongside the study guide
+
+IMPORTANT - Visual/Graphical Questions:
+For questions that require visualization, diagrams, graphs, or drawings:
+- DO NOT attempt to create ASCII art or text-based diagrams
+- Instead, provide clear, accurate TEXT DESCRIPTIONS of what should be visualized
+- Describe key features, relationships, and important details in words
+- Example: Instead of drawing a graph, describe: "The graph shows a parabola opening upward with vertex at (0, -4), x-intercepts at (-2, 0) and (2, 0), and y-intercept at (0, -4)"
+- For molecular structures, describe the arrangement: "The molecule has a tetrahedral geometry with carbon at the center bonded to four hydrogen atoms"
+- For diagrams, explain the components and their relationships clearly in prose
+
 IMPORTANT - Mathematical Content:
 When including mathematical equations, formulas, or expressions, ALWAYS use LaTeX notation:
-- For inline math (within text): Use single dollar signs like $E = mc^2$ or $\\alpha + \\beta$
-- For display math (centered, on separate lines): Use double dollar signs:
-  $$
-  \\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}
-  $$
 
-Use LaTeX for:
-- Equations and formulas: $F = ma$, $\\Delta E = mc^2$
+**For inline math (within text):** Use single dollar signs on the SAME LINE
+- Examples: $E = mc^2$, $\\alpha + \\beta$, $H_2O$, $Al^{3+}$, $Cl^-$
+
+**For display math (standalone equations):** Use double dollar signs on the SAME LINE
+- Examples: $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$, $$\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}$$
+
+CRITICAL FORMATTING RULES:
+1. Inline math: Keep $...$ on the SAME line as surrounding text
+   ✓ CORRECT: "Water ($H_2O$) consists of hydrogen and oxygen"
+   ✗ WRONG: "Water (
+   $H_2O$
+   ) consists of hydrogen and oxygen"
+
+2. Display math: Keep $$...$$ entirely on ONE line
+   ✓ CORRECT: $$E = mc^2$$
+   ✗ WRONG: $$
+   E = mc^2
+   $$
+
+Use LaTeX for ALL mathematical/chemical content:
+- Equations: $F = ma$, $\\Delta E = mc^2$
 - Fractions: $\\frac{a}{b}$, $\\frac{dy}{dx}$
-- Greek letters: $\\alpha$, $\\beta$, $\\gamma$, $\\Delta$, $\\theta$
-- Subscripts/superscripts: $x_i^2$, $a_n$
-- Integrals and sums: $\\int_a^b f(x)dx$, $\\sum_{i=1}^n a_i$
+- Greek letters: $\\alpha$, $\\beta$, $\\gamma$, $\\Delta$, $\\theta$, $\\pi$
+- Superscripts/subscripts: $x_i^2$, $a_n$, $2^{10}$
+- Integrals/sums: $\\int_a^b f(x)dx$, $\\sum_{i=1}^n a_i$
 - Roots: $\\sqrt{x}$, $\\sqrt[3]{x}$
-- Matrices: $\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}$
-- Chemical formulas: $H_2O$, $CO_2$, $C_6H_{12}O_6$
+- Ions: $Na^+$, $Ca^{2+}$, $O^{2-}$, $Al^{3+}$, $Cl^-$
+- Chemical formulas: $H_2O$, $CO_2$, $C_6H_{12}O_6$, $NaCl$, $MgCl_2$
+- Chemical compounds: $AlCl_3$, $CaCO_3$, $H_2SO_4$
 
-Examples:
+Complete examples:
+- "Aluminum forms $Al^{3+}$ ions and chlorine forms $Cl^-$ ions."
 - "The quadratic formula is $x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$"
-- "Calculate the derivative: $$\\frac{d}{dx}(x^2 + 3x) = 2x + 3$$"
-- "Water ($H_2O$) consists of 2 hydrogen atoms and 1 oxygen atom"
+- "Calculate: $$\\frac{d}{dx}(x^2 + 3x) = 2x + 3$$"
+- "Water ($H_2O$) reacts with carbon dioxide ($CO_2$) in photosynthesis."
 
 Be thorough in your thinking process - the student will see your extended thinking in real-time.`;
 
 export async function POST(request: NextRequest) {
   try {
-    const { images, descriptions } = await request.json();
+    const { images, descriptions, step, studyGuide } = await request.json();
 
     if (!images || !Array.isArray(images)) {
       return new Response('Invalid request: images array required', {
@@ -58,25 +97,48 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create message content with images
-    const messageContent: Anthropic.MessageParam['content'] = [
-      {
-        type: 'text',
-        text: `Please analyze these images of student notes and past quiz questions, then generate a new practice study guide.${
-          descriptions?.length > 0
-            ? `\n\nContext provided:\n${descriptions.map((d: string, i: number) => `Image ${i + 1}: ${d}`).join('\n')}`
-            : ''
-        }`,
-      },
-      ...images.map((base64Image: string) => ({
-        type: 'image' as const,
-        source: {
-          type: 'base64' as const,
-          media_type: 'image/jpeg' as const,
-          data: base64Image,
+    const generationStep = step || 1;
+
+    // Create message content based on step
+    let messageContent: Anthropic.MessageParam['content'];
+    let systemPrompt: string;
+
+    if (generationStep === 1) {
+      // Step 1: Generate questions from images
+      messageContent = [
+        {
+          type: 'text',
+          text: `Please analyze these images of student notes and past quiz questions, then generate a new practice study guide with QUESTIONS ONLY (no answers).${
+            descriptions?.length > 0
+              ? `\n\nContext provided:\n${descriptions.map((d: string, i: number) => `Image ${i + 1}: ${d}`).join('\n')}`
+              : ''
+          }`,
         },
-      })),
-    ];
+        ...images.map((base64Image: string) => ({
+          type: 'image' as const,
+          source: {
+            type: 'base64' as const,
+            media_type: 'image/jpeg' as const,
+            data: base64Image,
+          },
+        })),
+      ];
+      systemPrompt = STEP_1_SYSTEM_PROMPT;
+    } else {
+      // Step 2: Generate answers based on study guide
+      if (!studyGuide) {
+        return new Response('Invalid request: studyGuide required for step 2', {
+          status: 400,
+        });
+      }
+      messageContent = [
+        {
+          type: 'text',
+          text: `Here is the study guide with practice questions:\n\n${studyGuide}\n\nPlease generate a complete answer sheet with detailed answers for all questions.`,
+        },
+      ];
+      systemPrompt = STEP_2_SYSTEM_PROMPT;
+    }
 
     // Create streaming response
     const encoder = new TextEncoder();
@@ -98,7 +160,7 @@ export async function POST(request: NextRequest) {
                 content: messageContent,
               },
             ],
-            system: SYSTEM_PROMPT,
+            system: systemPrompt,
             stream: true,
           });
 

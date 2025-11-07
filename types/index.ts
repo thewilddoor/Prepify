@@ -1,6 +1,7 @@
 export type StepType = 'vision' | 'thinking' | 'tool_use' | 'generation';
 export type StepStatus = 'pending' | 'active' | 'complete';
-export type SessionStatus = 'uploading' | 'processing' | 'complete' | 'error';
+export type SessionStatus = 'uploading' | 'processing_questions' | 'questions_complete' | 'processing_answers' | 'complete' | 'error';
+export type GenerationStep = 1 | 2;
 
 export interface Step {
   id: string;
@@ -10,6 +11,7 @@ export interface Step {
   timestamp: number;
   toolName?: string; // For tool_use type
   toolInput?: string; // For tool_use type
+  generationStep?: GenerationStep; // Which generation step this belongs to
 }
 
 export interface Session {
@@ -19,7 +21,10 @@ export interface Session {
   descriptions: string[]; // optional context per image
   status: SessionStatus;
   steps: Step[];
-  result?: string; // final generated content
+  studyGuide?: string; // Step 1: Questions only
+  answerSheet?: string; // Step 2: Answers based on study guide
+  result?: string; // Combined result (for backwards compatibility)
+  currentStep?: GenerationStep; // Current generation step
   errorMessage?: string;
   completedAt?: number;
 }

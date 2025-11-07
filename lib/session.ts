@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Session, Step } from '@/types';
+import type { Session, Step, SessionStatus } from '@/types';
 import { saveSession, getSession, updateSession } from './db';
 
 // Create a new session
@@ -14,6 +14,7 @@ export const createSession = async (
     descriptions,
     status: 'uploading',
     steps: [],
+    currentStep: 1,
   };
 
   await saveSession(session);
@@ -65,6 +66,45 @@ export const completeSession = async (
     result,
     completedAt: Date.now(),
   });
+};
+
+// Save study guide (Step 1 result)
+export const saveStudyGuide = async (
+  sessionId: string,
+  studyGuide: string
+): Promise<void> => {
+  await updateSession(sessionId, {
+    studyGuide,
+    status: 'questions_complete',
+    currentStep: 2,
+  });
+};
+
+// Save answer sheet (Step 2 result) and mark complete
+export const saveAnswerSheet = async (
+  sessionId: string,
+  answerSheet: string
+): Promise<void> => {
+  const session = await getSession(sessionId);
+  if (!session) throw new Error('Session not found');
+
+  // Combine study guide and answer sheet for backwards compatibility
+  const combinedResult = `# Study Guide\n\n${session.studyGuide}\n\n---\n\n# Answer Sheet\n\n${answerSheet}`;
+
+  await updateSession(sessionId, {
+    answerSheet,
+    result: combinedResult,
+    status: 'complete',
+    completedAt: Date.now(),
+  });
+};
+
+// Update session status
+export const updateSessionStatus = async (
+  sessionId: string,
+  status: SessionStatus
+): Promise<void> => {
+  await updateSession(sessionId, { status });
 };
 
 // Mark session as error

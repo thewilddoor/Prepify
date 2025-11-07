@@ -18,6 +18,7 @@ export default function ResultPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'questions' | 'answers' | 'combined'>('questions');
 
   useEffect(() => {
     const loadSession = async () => {
@@ -84,7 +85,21 @@ export default function ResultPage() {
     ? Math.round((session.completedAt - session.timestamp) / 1000)
     : 0;
 
-  const questionCount = (session.result?.match(/\d+\./g) || []).length;
+  const questionCount = (session.studyGuide?.match(/\d+\./g) || []).length;
+
+  // Determine what content to display
+  const getDisplayContent = () => {
+    switch (activeTab) {
+      case 'questions':
+        return session.studyGuide || '';
+      case 'answers':
+        return session.answerSheet || '';
+      case 'combined':
+        return session.result || '';
+      default:
+        return '';
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#0A0A0A]">
@@ -113,7 +128,7 @@ export default function ResultPage() {
         >
           <div className="flex items-center justify-center gap-3 mb-4">
             <CheckCircle className="h-12 w-12 text-green-500" />
-            <h1 className="text-4xl font-bold">Study Guide Ready</h1>
+            <h1 className="text-4xl font-bold">Study Materials Ready</h1>
           </div>
 
           <div className="flex items-center justify-center gap-8 text-sm text-gray-600 dark:text-gray-400">
@@ -134,13 +149,55 @@ export default function ResultPage() {
           </div>
         </motion.div>
 
+        {/* Tab Navigation */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="mb-8"
+        >
+          <div className="flex justify-center gap-2 border-b border-gray-200 dark:border-gray-800">
+            <button
+              onClick={() => setActiveTab('questions')}
+              className={`px-6 py-3 font-medium transition-colors ${
+                activeTab === 'questions'
+                  ? 'text-purple-custom border-b-2 border-purple-custom'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              Study Guide
+            </button>
+            <button
+              onClick={() => setActiveTab('answers')}
+              className={`px-6 py-3 font-medium transition-colors ${
+                activeTab === 'answers'
+                  ? 'text-purple-custom border-b-2 border-purple-custom'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              Answer Sheet
+            </button>
+            <button
+              onClick={() => setActiveTab('combined')}
+              className={`px-6 py-3 font-medium transition-colors ${
+                activeTab === 'combined'
+                  ? 'text-purple-custom border-b-2 border-purple-custom'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              Combined
+            </button>
+          </div>
+        </motion.div>
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
           className="mb-8"
+          key={activeTab}
         >
-          <StudyGuideViewer content={session.result!} />
+          <StudyGuideViewer content={getDisplayContent()} />
         </motion.div>
 
         <motion.div
@@ -149,7 +206,11 @@ export default function ResultPage() {
           transition={{ duration: 0.5, delay: 0.4 }}
           className="max-w-2xl mx-auto"
         >
-          <DownloadButtons content={session.result!} sessionId={sessionId} />
+          <DownloadButtons
+            content={getDisplayContent()}
+            sessionId={sessionId}
+            contentType={activeTab}
+          />
         </motion.div>
       </main>
     </div>

@@ -10,6 +10,8 @@ interface AgenticViewerProps {
   sessionId: string;
   images: string[];
   descriptions: string[];
+  step?: 1 | 2;
+  studyGuide?: string;
   onComplete: (result: string) => void;
   onError: (error: string) => void;
 }
@@ -18,6 +20,8 @@ export function AgenticViewer({
   sessionId,
   images,
   descriptions,
+  step = 1,
+  studyGuide,
   onComplete,
   onError,
 }: AgenticViewerProps) {
@@ -49,6 +53,8 @@ export function AgenticViewer({
           body: JSON.stringify({
             images,
             descriptions,
+            step,
+            studyGuide,
           }),
         });
 
@@ -115,6 +121,7 @@ export function AgenticViewer({
               status: 'active',
               timestamp: Date.now(),
               toolName: data.toolName,
+              generationStep: step,
             },
           ]);
           setProgress((prev) => Math.min(prev + 15, 90));
@@ -175,7 +182,7 @@ export function AgenticViewer({
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm pb-4">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-xl font-semibold">
-            {progress === 100 ? 'Complete!' : 'Generating Study Guide...'}
+            {progress === 100 ? 'Complete!' : step === 1 ? 'Step 1: Generating Questions...' : 'Step 2: Generating Answers...'}
           </h2>
           <span className="text-sm text-gray-500">{Math.round(progress)}%</span>
         </div>
