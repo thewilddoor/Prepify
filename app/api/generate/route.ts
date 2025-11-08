@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest } from 'next/server';
-import type { StudyGuideConfig } from '@/types';
+import type { StudyGuideConfig, FileUpload } from '@/types';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -49,7 +49,7 @@ function buildStep1Prompt(config?: StudyGuideConfig): string {
   return `You are an expert educational AI that creates practice study materials.
 
 Your task (Step 1 - Questions Only):
-1. Analyze the provided images (student notes and past quiz questions)
+1. Analyze the provided materials (images, PDFs, PowerPoint slides, or extracted text from student notes and past quiz questions)
 2. Identify:
    - Key topics and concepts
    - Question types and formats
@@ -146,10 +146,14 @@ Be thorough in your thinking process - the student will see your extended thinki
 
 export async function POST(request: NextRequest) {
   try {
-    const { images, descriptions, step, studyGuide, config } = await request.json();
+    const { images, descriptions, step, studyGuide, config, files } = await request.json();
 
-    if (!images || !Array.isArray(images)) {
-      return new Response('Invalid request: images array required', {
+    // Support both old format (images) and new format (files)
+    const hasImages = images && Array.isArray(images) && images.length > 0;
+    const hasFiles = files && Array.isArray(files) && files.length > 0;
+
+    if (!hasImages && !hasFiles) {
+      return new Response('Invalid request: images or files array required', {
         status: 400,
       });
     }
@@ -171,25 +175,84 @@ export async function POST(request: NextRequest) {
     let systemPrompt: string;
 
     if (generationStep === 1) {
-      // Step 1: Generate questions from images
-      messageContent = [
-        {
+      // Step 1: Generate questions from files (images, PDFs, PPTs)
+      const contentParts: any[] = [];
+
+      // Use new files format if available, otherwise fall back to images
+      if (hasFiles) {
+        const uploadedFiles = files as FileUpload[];
+
+        // Build context text with descriptions
+        let contextText = 'Please analyze these materials (student notes and past quiz questions), then generate a new practice study guide with QUESTIONS ONLY (no answers).';
+
+        const descriptionsWithFiles = uploadedFiles
+          .filter(f => f.description)
+          .map((f) => `${f.fileName}: ${f.description}`)
+          .filter(Boolean);
+
+        if (descriptionsWithFiles.length > 0) {
+          contextText += `\n\nContext provided:\n${descriptionsWithFiles.join('\n')}`;
+        }
+
+        contentParts.push({
+          type: 'text',
+          text: contextText,
+        });
+
+        // Add each file based on its type
+        for (const file of uploadedFiles) {
+          if (file.type === 'image') {
+            // Images: send as base64 image
+            contentParts.push({
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: 'image/jpeg',
+                data: file.data,
+              },
+            });
+          } else if (file.type === 'pdf') {
+            // PDFs: send as document using Claude's native PDF support
+            contentParts.push({
+              type: 'document',
+              source: {
+                type: 'base64',
+                media_type: 'application/pdf',
+                data: file.data,
+              },
+            });
+          } else if (file.type === 'ppt') {
+            // PPTs: send extracted text
+            contentParts.push({
+              type: 'text',
+              text: `\n\n--- Content from PowerPoint file: ${file.fileName} ---\n${file.extractedText}\n--- End of ${file.fileName} ---\n\n`,
+            });
+          }
+        }
+      } else {
+        // Fall back to old images format
+        contentParts.push({
           type: 'text',
           text: `Please analyze these images of student notes and past quiz questions, then generate a new practice study guide with QUESTIONS ONLY (no answers).${
             descriptions?.length > 0
               ? `\n\nContext provided:\n${descriptions.map((d: string, i: number) => `Image ${i + 1}: ${d}`).join('\n')}`
               : ''
           }`,
-        },
-        ...images.map((base64Image: string) => ({
-          type: 'image' as const,
-          source: {
-            type: 'base64' as const,
-            media_type: 'image/jpeg' as const,
-            data: base64Image,
-          },
-        })),
-      ];
+        });
+
+        contentParts.push(
+          ...images.map((base64Image: string) => ({
+            type: 'image' as const,
+            source: {
+              type: 'base64' as const,
+              media_type: 'image/jpeg' as const,
+              data: base64Image,
+            },
+          }))
+        );
+      }
+
+      messageContent = contentParts;
       systemPrompt = buildStep1Prompt(studyGuideConfig);
     } else {
       // Step 2: Generate answers based on study guide

@@ -4,12 +4,13 @@ import { useEffect, useState, useRef } from 'react'
 import { StepCard } from './step-card'
 import { ThinkingBlock } from './thinking-block'
 import { Progress } from '@/components/ui/progress'
-import type { Step, StudyGuideConfig } from '@/types'
+import type { Step, StudyGuideConfig, FileUpload } from '@/types'
 
 interface AgenticViewerProps {
   sessionId: string
   images: string[]
   descriptions: string[]
+  files?: FileUpload[]
   step?: 1 | 2
   studyGuide?: string
   config?: StudyGuideConfig
@@ -21,6 +22,7 @@ export function AgenticViewer({
   sessionId,
   images,
   descriptions,
+  files,
   step = 1,
   studyGuide,
   config,
@@ -55,6 +57,7 @@ export function AgenticViewer({
           body: JSON.stringify({
             images,
             descriptions,
+            files,
             step,
             studyGuide,
             config,

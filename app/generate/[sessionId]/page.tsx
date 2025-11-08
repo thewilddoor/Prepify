@@ -149,6 +149,7 @@ export default function GeneratePage() {
             sessionId={sessionId}
             images={session.images}
             descriptions={session.descriptions}
+            files={session.files}
             step={currentStep}
             studyGuide={session.studyGuide}
             config={session.config}

@@ -120,7 +120,7 @@ export function StudyGuideViewer({ content }: StudyGuideViewerProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
       <style jsx global>{`
         @media print {
           /* This will be used if user prints directly from browser */
@@ -137,11 +137,23 @@ export function StudyGuideViewer({ content }: StudyGuideViewerProps) {
             top: 0;
             width: 100%;
           }
+          .no-print {
+            display: none !important;
+          }
+        }
+        /* Ensure buttons are always fixed and never in flow */
+        .action-buttons-fixed {
+          position: fixed !important;
+          top: 2rem !important;
+          right: 2rem !important;
+          z-index: 9999 !important;
+          display: flex !important;
+          gap: 0.75rem !important;
         }
       `}</style>
 
-      {/* Action buttons - Fixed at top right */}
-      <div className="fixed top-8 right-8 z-20 flex gap-3 no-print">
+      {/* Action buttons - Fixed at top right - rendered first */}
+      <div className="action-buttons-fixed no-print">
         <button
           onClick={handlePrint}
           className="flex items-center gap-2 px-4 py-2 bg-background/80 backdrop-blur-md rounded-full shadow-lg hover:shadow-xl transition-all border border-border/40 hover:border-[#DAC2EF]/40"
@@ -171,10 +183,11 @@ export function StudyGuideViewer({ content }: StudyGuideViewerProps) {
       </div>
 
       {/* Content - Centered with equal margins */}
-      <div className="mx-auto max-w-4xl px-8 py-8">
-        <div id="printable-study-guide" className="print-container">
-        <div className="prose prose-lg dark:prose-invert max-w-none print:prose-print">
-          <ReactMarkdown
+      <div className="min-h-screen bg-background">
+        <div className="mx-auto max-w-4xl px-8 py-8">
+          <div id="printable-study-guide" className="print-container">
+            <div className="prose prose-lg dark:prose-invert max-w-none print:prose-print">
+              <ReactMarkdown
             remarkPlugins={[remarkGfm, remarkMath]}
             rehypePlugins={[rehypeKatex]}
             components={{
@@ -293,12 +306,13 @@ export function StudyGuideViewer({ content }: StudyGuideViewerProps) {
                 <em className="italic text-muted-foreground">{children}</em>
               ),
             }}
-          >
-            {content}
-          </ReactMarkdown>
-        </div>
+              >
+                {content}
+              </ReactMarkdown>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

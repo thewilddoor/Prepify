@@ -3,8 +3,8 @@
 import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Card } from '@/components/ui/card';
-import { X, Upload, Image as ImageIcon } from 'lucide-react';
-import { compressImage } from '@/lib/session';
+import { X, Upload, Image as ImageIcon, FileText, File } from 'lucide-react';
+import { compressImage, detectFileType } from '@/lib/session';
 import type { ImageUpload } from '@/types';
 
 interface UploadZoneProps {
@@ -23,10 +23,12 @@ export function UploadZone({ onImagesChange, images }: UploadZoneProps) {
         const newImages: ImageUpload[] = [];
 
         for (const file of acceptedFiles) {
-          // Compress if needed
-          const processedFile = await compressImage(file);
+          const fileType = detectFileType(file);
 
-          // Create preview URL
+          // Only compress images, leave PDFs and PPTs as-is
+          const processedFile = fileType === 'image' ? await compressImage(file) : file;
+
+          // Create preview URL (for images) or use the file directly
           const preview = URL.createObjectURL(processedFile);
 
           newImages.push({
@@ -39,6 +41,7 @@ export function UploadZone({ onImagesChange, images }: UploadZoneProps) {
         onImagesChange([...images, ...newImages]);
       } catch (error) {
         console.error('Error processing files:', error);
+        alert(`Failed to process file: ${error instanceof Error ? error.message : 'Unknown error'}`);
       } finally {
         setIsProcessing(false);
       }
@@ -50,8 +53,11 @@ export function UploadZone({ onImagesChange, images }: UploadZoneProps) {
     onDrop,
     accept: {
       'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'],
+      'application/pdf': ['.pdf'],
+      'application/vnd.ms-powerpoint': ['.ppt'],
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
     },
-    maxSize: 10 * 1024 * 1024, // 10MB
+    maxSize: 32 * 1024 * 1024, // 32MB (Claude's PDF limit)
     multiple: true,
   });
 
@@ -90,13 +96,16 @@ export function UploadZone({ onImagesChange, images }: UploadZoneProps) {
             }`}
           />
           <p className="text-2xl font-medium mb-2">
-            {isDragActive ? 'Drop images here' : 'Drop images here'}
+            {isDragActive ? 'Drop files here' : 'Drop files here'}
           </p>
           <p className="text-lg text-gray-500">
             or click to browse
           </p>
           <p className="text-sm text-gray-400 mt-4">
-            Support for JPG, PNG, GIF, WEBP (max 10MB each)
+            Images (JPG, PNG, GIF, WEBP), PDFs, PowerPoint (PPT, PPTX)
+          </p>
+          <p className="text-xs text-gray-400 mt-1">
+            Max 32MB per file • PPT files limited to 15 pages
           </p>
         </div>
       </Card>
@@ -117,16 +126,32 @@ export function UploadZone({ onImagesChange, images }: UploadZoneProps) {
               </button>
 
               <div className="aspect-square relative bg-gray-100 dark:bg-gray-900">
-                <img
-                  src={image.preview}
-                  alt={`Upload ${index + 1}`}
-                  className="w-full h-full object-cover"
-                />
+                {detectFileType(image.file) === 'image' ? (
+                  <img
+                    src={image.preview}
+                    alt={`Upload ${index + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    {detectFileType(image.file) === 'pdf' ? (
+                      <FileText className="h-20 w-20 text-red-500" />
+                    ) : (
+                      <File className="h-20 w-20 text-orange-500" />
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="p-3">
                 <div className="flex items-center gap-2 mb-2 text-sm text-gray-500">
-                  <ImageIcon className="h-4 w-4" />
+                  {detectFileType(image.file) === 'image' ? (
+                    <ImageIcon className="h-4 w-4" />
+                  ) : detectFileType(image.file) === 'pdf' ? (
+                    <FileText className="h-4 w-4" />
+                  ) : (
+                    <File className="h-4 w-4" />
+                  )}
                   <span className="truncate">{image.file.name}</span>
                 </div>
                 <input

@@ -19,6 +19,7 @@ export interface Session {
   timestamp: number;
   images: string[]; // base64 encoded images
   descriptions: string[]; // optional context per image
+  files?: FileUpload[]; // All uploaded files (images, PDFs, PPTs)
   status: SessionStatus;
   steps: Step[];
   studyGuide?: string; // Step 1: Questions only
@@ -41,10 +42,21 @@ export interface StreamEvent {
   error?: string;
 }
 
+export type FileType = 'image' | 'pdf' | 'ppt';
+
 export interface ImageUpload {
   file: File;
   preview: string;
   description?: string;
+}
+
+export interface FileUpload {
+  type: FileType;
+  data: string; // base64 encoded for images/PDFs, or extracted text for PPTs
+  description?: string;
+  fileName: string;
+  extractedText?: string; // For PPT files
+  pageCount?: number; // For PDFs and PPTs
 }
 
 export interface StudyGuideConfig {

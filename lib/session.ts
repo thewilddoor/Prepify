@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Session, Step, SessionStatus } from '@/types';
+import type { Session, Step, SessionStatus, FileUpload, FileType } from '@/types';
 import { saveSession, getSession, updateSession } from './db';
 
 // Create a new session
@@ -197,4 +197,116 @@ export const getMediaType = (file: File): string => {
     return file.type;
   }
   return 'image/jpeg'; // Default
+};
+
+// Detect file type
+export const detectFileType = (file: File): FileType => {
+  const fileName = file.name.toLowerCase();
+  const mimeType = file.type.toLowerCase();
+
+  if (mimeType === 'application/pdf' || fileName.endsWith('.pdf')) {
+    return 'pdf';
+  }
+  if (
+    mimeType === 'application/vnd.ms-powerpoint' ||
+    mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
+    fileName.endsWith('.ppt') ||
+    fileName.endsWith('.pptx')
+  ) {
+    return 'ppt';
+  }
+  return 'image';
+};
+
+// Process PPT file - send to server-side API for text extraction
+export const processPPTFile = async (file: File): Promise<{ text: string; pageCount: number }> => {
+  try {
+    // Send to server-side API for processing
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch('/api/process-ppt', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to process PPT file');
+    }
+
+    const result = await response.json();
+    return {
+      text: result.text,
+      pageCount: result.pageCount,
+    };
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(`Failed to process PPT file: ${error.message}`);
+    }
+    throw new Error('Failed to process PPT file');
+  }
+};
+
+// Process PDF file - convert to base64 for Claude native processing
+export const processPDFFile = async (file: File): Promise<string> => {
+  try {
+    // Validate file size (32MB limit for Claude)
+    if (file.size > 32 * 1024 * 1024) {
+      throw new Error('PDF file exceeds 32MB limit');
+    }
+
+    // Convert to base64
+    const base64 = await fileToBase64(file);
+    return base64;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(`Failed to process PDF file: ${error.message}`);
+    }
+    throw new Error('Failed to process PDF file');
+  }
+};
+
+// Process any file type
+export const processFile = async (file: File): Promise<FileUpload> => {
+  const fileType = detectFileType(file);
+
+  switch (fileType) {
+    case 'pdf': {
+      const base64Data = await processPDFFile(file);
+      return {
+        type: 'pdf',
+        data: base64Data,
+        fileName: file.name,
+        description: '',
+      };
+    }
+
+    case 'ppt': {
+      const { text, pageCount } = await processPPTFile(file);
+      return {
+        type: 'ppt',
+        data: text,
+        fileName: file.name,
+        extractedText: text,
+        pageCount,
+        description: '',
+      };
+    }
+
+    case 'image': {
+      // Compress if needed
+      const processedFile = await compressImage(file);
+      const base64Data = await fileToBase64(processedFile);
+      return {
+        type: 'image',
+        data: base64Data,
+        fileName: file.name,
+        description: '',
+      };
+    }
+
+    default:
+      throw new Error(`Unsupported file type: ${fileType}`);
+  }
 };

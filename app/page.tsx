@@ -6,9 +6,10 @@ import { UploadZone } from '@/components/upload-zone';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, NotebookPen } from 'lucide-react';
 import { motion } from 'framer-motion';
-import type { ImageUpload } from '@/types';
-import { createSession, fileToBase64 } from '@/lib/session';
+import type { ImageUpload, FileUpload } from '@/types';
+import { createSession, fileToBase64, processFile } from '@/lib/session';
 import { cleanupOldSessions } from '@/lib/db';
+import { saveSession } from '@/lib/db';
 
 export default function Home() {
   const [images, setImages] = useState<ImageUpload[]>([]);
@@ -22,24 +23,47 @@ export default function Home() {
 
   const handleGenerate = async () => {
     if (images.length === 0) {
-      alert('Please upload at least one image');
+      alert('Please upload at least one file');
       return;
     }
 
     setIsGenerating(true);
 
     try {
-      // Convert all images to base64
-      const base64Images = await Promise.all(
-        images.map((img) => fileToBase64(img.file))
-      );
+      // Process all files (images, PDFs, PPTs)
+      const processedFiles: FileUpload[] = [];
+      const base64Images: string[] = [];
+      const descriptions: string[] = [];
 
-      const descriptions = images.map((img) => img.description || '');
+      for (const img of images) {
+        try {
+          const processed = await processFile(img.file);
+          processed.description = img.description || '';
+          processedFiles.push(processed);
 
-      // Create session in IndexedDB
+          // Keep base64 images for backwards compatibility
+          if (processed.type === 'image') {
+            base64Images.push(processed.data);
+            descriptions.push(processed.description || '');
+          }
+        } catch (error) {
+          console.error(`Error processing file ${img.file.name}:`, error);
+          alert(`Failed to process ${img.file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          setIsGenerating(false);
+          return;
+        }
+      }
+
+      // Create session with both old (images) and new (files) format
       const session = await createSession(base64Images, descriptions);
 
-      // Navigate to config page instead of generation page
+      // Update session with processed files
+      await saveSession({
+        ...session,
+        files: processedFiles,
+      });
+
+      // Navigate to config page
       router.push(`/config/${session.id}`);
     } catch (error) {
       console.error('Error creating session:', error);
@@ -105,7 +129,7 @@ export default function Home() {
             animate={{ opacity: 1 }}
             className="mt-8 text-center text-sm text-gray-500"
           >
-            {images.length} image{images.length !== 1 ? 's' : ''} ready to analyze
+            {images.length} file{images.length !== 1 ? 's' : ''} ready to analyze
           </motion.div>
         )}
       </main>
