@@ -2,6 +2,7 @@ export type StepType = 'vision' | 'thinking' | 'tool_use' | 'generation';
 export type StepStatus = 'pending' | 'active' | 'complete';
 export type SessionStatus = 'uploading' | 'processing_questions' | 'questions_complete' | 'processing_answers' | 'complete' | 'error';
 export type GenerationStep = 1 | 2;
+export type SessionMode = 'study-guide' | 'focused-quiz';
 
 export interface Step {
   id: string;
@@ -28,7 +29,8 @@ export interface Session {
   currentStep?: GenerationStep; // Current generation step
   errorMessage?: string;
   completedAt?: number;
-  config?: StudyGuideConfig; // Configuration for study guide generation
+  mode?: SessionMode; // Mode: study-guide or focused-quiz
+  config?: StudyGuideConfig | FocusedQuizConfig; // Configuration for generation
 }
 
 export interface StreamEvent {
@@ -60,8 +62,18 @@ export interface FileUpload {
 }
 
 export interface StudyGuideConfig {
+  mode?: 'study-guide';
   questionCount: number;
   focusPoints: string;
+  curriculum?: string;
+  gradeLevel?: string;
+  difficulty: 'match' | 'easier' | 'harder';
+  additionalInstructions?: string;
+}
+
+export interface FocusedQuizConfig {
+  mode: 'focused-quiz';
+  questionCount: number;
   curriculum?: string;
   gradeLevel?: string;
   difficulty: 'match' | 'easier' | 'harder';

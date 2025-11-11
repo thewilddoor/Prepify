@@ -10,9 +10,10 @@ import type { ImageUpload } from '@/types';
 interface UploadZoneProps {
   onImagesChange: (images: ImageUpload[]) => void;
   images: ImageUpload[];
+  helpText?: string;
 }
 
-export function UploadZone({ onImagesChange, images }: UploadZoneProps) {
+export function UploadZone({ onImagesChange, images, helpText }: UploadZoneProps) {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const onDrop = useCallback(
@@ -101,6 +102,11 @@ export function UploadZone({ onImagesChange, images }: UploadZoneProps) {
           <p className="text-lg text-gray-500">
             or click to browse
           </p>
+          {helpText && (
+            <p className="text-sm text-purple-custom font-medium mt-4 mb-2">
+              {helpText}
+            </p>
+          )}
           <p className="text-sm text-gray-400 mt-4">
             Images (JPG, PNG, GIF, WEBP), PDFs, PowerPoint (PPT, PPTX)
           </p>

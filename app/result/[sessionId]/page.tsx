@@ -81,6 +81,9 @@ export default function ResultPage() {
   }
 
   // Determine what content to display
+  const mode = session.mode || 'study-guide';
+  const isFocusedQuiz = mode === 'focused-quiz';
+
   const getDisplayContent = () => {
     switch (activeTab) {
       case 'questions':
@@ -122,7 +125,7 @@ export default function ResultPage() {
           <div className="flex items-center justify-center gap-3">
             <h1 className="text-4xl font-bold inline-block">
               <span className="inline-block overflow-hidden whitespace-nowrap border-r-4 border-[#C8A8E3] pr-1 animate-[typing_2s_steps(22)_1s_1_normal_both,blink_0.75s_step-end_infinite]">
-                Study Materials Ready
+                {isFocusedQuiz ? 'Focused Quiz Ready' : 'Study Materials Ready'}
               </span>
             </h1>
           </div>
@@ -144,7 +147,7 @@ export default function ResultPage() {
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
               }`}
             >
-              Study Guide
+              {isFocusedQuiz ? 'Quiz' : 'Study Guide'}
             </button>
             <button
               onClick={() => setActiveTab('answers')}
@@ -154,18 +157,20 @@ export default function ResultPage() {
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
               }`}
             >
-              Answer Sheet
+              {isFocusedQuiz ? 'Answers' : 'Answer Sheet'}
             </button>
-            <button
-              onClick={() => setActiveTab('combined')}
-              className={`px-6 py-3 font-medium transition-colors ${
-                activeTab === 'combined'
-                  ? 'text-purple-custom border-b-2 border-purple-custom'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-              }`}
-            >
-              Combined
-            </button>
+            {!isFocusedQuiz && (
+              <button
+                onClick={() => setActiveTab('combined')}
+                className={`px-6 py-3 font-medium transition-colors ${
+                  activeTab === 'combined'
+                    ? 'text-purple-custom border-b-2 border-purple-custom'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                Combined
+              </button>
+            )}
           </div>
         </motion.div>
 

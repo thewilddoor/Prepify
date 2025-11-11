@@ -3,22 +3,22 @@
 import { useState } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import type { StudyGuideConfig } from '@/types';
+import type { FocusedQuizConfig } from '@/types';
 
-interface ConfigFormProps {
-  onSubmit: (config: StudyGuideConfig) => void;
+interface FocusedQuizConfigFormProps {
+  onSubmit: (config: FocusedQuizConfig) => void;
   onBack: () => void;
-  initialConfig?: StudyGuideConfig;
+  initialConfig?: FocusedQuizConfig;
 }
 
-const DEFAULT_CONFIG: StudyGuideConfig = {
-  questionCount: 15,
-  focusPoints: '',
+const DEFAULT_CONFIG: FocusedQuizConfig = {
+  mode: 'focused-quiz',
+  questionCount: 10,
   difficulty: 'match',
 };
 
-export function ConfigForm({ onSubmit, onBack, initialConfig }: ConfigFormProps) {
-  const [config, setConfig] = useState<StudyGuideConfig>(initialConfig || DEFAULT_CONFIG);
+export function FocusedQuizConfigForm({ onSubmit, onBack, initialConfig }: FocusedQuizConfigFormProps) {
+  const [config, setConfig] = useState<FocusedQuizConfig>(initialConfig || DEFAULT_CONFIG);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,12 +29,37 @@ export function ConfigForm({ onSubmit, onBack, initialConfig }: ConfigFormProps)
     <form onSubmit={handleSubmit} className="w-full max-w-3xl mx-auto space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Configure Your Study Guide</CardTitle>
+          <CardTitle>Configure Your Focused Quiz</CardTitle>
           <CardDescription>
-            Customize the study guide generation to match your needs
+            The AI will analyze your graded work to identify wrong answers and generate targeted practice questions
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Info Box */}
+          <div className="bg-purple-custom/10 border border-purple-custom/30 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <svg
+                className="h-5 w-5 text-purple-custom mt-0.5 flex-shrink-0"
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="text-sm">
+                <p className="font-medium text-purple-custom mb-1">How it works:</p>
+                <ul className="text-gray-600 dark:text-gray-400 space-y-1">
+                  <li>• AI identifies incorrect answers by looking for red marks, X&apos;s, and corrections</li>
+                  <li>• Determines which concepts you struggled with</li>
+                  <li>• Generates {config.questionCount} targeted questions to help you master those areas</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
           {/* Question Count */}
           <div className="space-y-2">
             <label htmlFor="questionCount" className="block text-sm font-medium">
@@ -43,34 +68,17 @@ export function ConfigForm({ onSubmit, onBack, initialConfig }: ConfigFormProps)
             <input
               type="range"
               id="questionCount"
-              min="1"
-              max="30"
+              min="5"
+              max="15"
               value={config.questionCount}
               onChange={(e) => setConfig({ ...config, questionCount: parseInt(e.target.value) })}
               className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-custom"
             />
             <div className="flex justify-between text-xs text-gray-500">
-              <span>1</span>
+              <span>5</span>
+              <span>10</span>
               <span>15</span>
-              <span>30</span>
             </div>
-          </div>
-
-          {/* Focus Points */}
-          <div className="space-y-2">
-            <label htmlFor="focusPoints" className="block text-sm font-medium">
-              Focus Points
-            </label>
-            <textarea
-              id="focusPoints"
-              value={config.focusPoints}
-              onChange={(e) => setConfig({ ...config, focusPoints: e.target.value })}
-              placeholder="Enter key topics or concepts to emphasize (e.g., Cell Division, Photosynthesis, Mitosis)"
-              className="w-full min-h-[100px] p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-custom focus:border-transparent resize-y"
-            />
-            <p className="text-xs text-gray-500">
-              Specify topics you want to focus on. At least 60% of questions will target these areas.
-            </p>
           </div>
 
           {/* Difficulty */}
@@ -136,7 +144,7 @@ export function ConfigForm({ onSubmit, onBack, initialConfig }: ConfigFormProps)
               <option value="Graduate">Graduate School</option>
             </select>
             <p className="text-xs text-gray-500">
-              Select the appropriate grade level for this study guide.
+              Select the appropriate grade level for this quiz.
             </p>
           </div>
 
@@ -149,7 +157,7 @@ export function ConfigForm({ onSubmit, onBack, initialConfig }: ConfigFormProps)
               id="additionalInstructions"
               value={config.additionalInstructions || ''}
               onChange={(e) => setConfig({ ...config, additionalInstructions: e.target.value })}
-              placeholder="Any other specific requirements or preferences for the study guide..."
+              placeholder="Any other specific requirements or preferences for the quiz..."
               className="w-full min-h-[80px] p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-custom focus:border-transparent resize-y"
             />
           </div>
@@ -166,7 +174,7 @@ export function ConfigForm({ onSubmit, onBack, initialConfig }: ConfigFormProps)
           ← Back to Edit Files
         </Button>
         <Button type="submit" className="px-8">
-          Generate Study Guide
+          Generate Focused Quiz
         </Button>
       </div>
     </form>

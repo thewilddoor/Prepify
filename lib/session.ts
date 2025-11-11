@@ -1,17 +1,19 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Session, Step, SessionStatus, FileUpload, FileType } from '@/types';
+import type { Session, Step, SessionStatus, FileUpload, FileType, SessionMode } from '@/types';
 import { saveSession, getSession, updateSession } from './db';
 
 // Create a new session
 export const createSession = async (
   images: string[],
-  descriptions: string[]
+  descriptions: string[],
+  mode: SessionMode = 'study-guide'
 ): Promise<Session> => {
   const session: Session = {
     id: uuidv4(),
     timestamp: Date.now(),
     images,
     descriptions,
+    mode,
     status: 'uploading',
     steps: [],
     currentStep: 1,

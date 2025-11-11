@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest } from 'next/server';
-import type { StudyGuideConfig, FileUpload } from '@/types';
+import type { StudyGuideConfig, FocusedQuizConfig, FileUpload } from '@/types';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -144,6 +144,105 @@ FORMATTING RULES:
 Be thorough in your thinking process - the student will see your extended thinking in real-time.`;
 }
 
+// Helper function to build focused quiz step 1 prompt
+function buildFocusedQuizStep1Prompt(config?: FocusedQuizConfig): string {
+  const questionCount = config?.questionCount || 10;
+  const difficulty = config?.difficulty || 'match';
+  const curriculum = config?.curriculum?.trim();
+  const gradeLevel = config?.gradeLevel?.trim();
+  const additionalInstructions = config?.additionalInstructions?.trim();
+
+  let difficultyGuidance = '';
+  if (difficulty === 'easier') {
+    difficultyGuidance = 'Make the questions SLIGHTLY EASIER than the original assessment, while staying within the same concepts.';
+  } else if (difficulty === 'harder') {
+    difficultyGuidance = 'Make the questions SLIGHTLY HARDER than the original assessment, but still within the bounds of the provided concepts.';
+  } else {
+    difficultyGuidance = 'Match the difficulty level of the original assessment.';
+  }
+
+  let contextSection = '';
+  if (curriculum || gradeLevel) {
+    contextSection = '\n\nContext:\n';
+    if (gradeLevel) {
+      contextSection += `- Target audience: ${gradeLevel} students\n`;
+    }
+    if (curriculum) {
+      contextSection += `- Curriculum: ${curriculum}\n`;
+    }
+    contextSection += 'Align question style and expectations accordingly.\n';
+  }
+
+  let additionalSection = '';
+  if (additionalInstructions) {
+    additionalSection = `\n\nADDITIONAL REQUIREMENTS:\n${additionalInstructions}\n`;
+  }
+
+  return `You are an expert educational AI that creates targeted practice quizzes based on student weaknesses.
+
+Your task (Step 1 - Weakness-Focused Questions):
+
+VISION ANALYSIS PHASE:
+1. Carefully analyze the uploaded graded assignment/test images or documents
+2. Look for visual indicators of incorrect answers:
+   - Red marks, X's, crosses, or checkmarks indicating wrong answers
+   - Low scores or point deductions
+   - Teacher comments, corrections, or annotations indicating errors
+   - Circled or highlighted mistakes
+   - Incorrect answers with corrections shown
+   - Point values vs. earned points showing deductions
+3. For each identified error, determine:
+   - The specific concept or topic being tested
+   - The type of error (conceptual misunderstanding, calculation mistake, application error, etc.)
+   - The underlying knowledge gap that led to the mistake
+4. Identify patterns across multiple wrong answers if present
+
+QUESTION GENERATION PHASE:
+5. Generate EXACTLY ${questionCount} practice questions that:
+   - Target the identified weak areas and knowledge gaps
+   - Test the same underlying concepts from different angles
+   - ${difficultyGuidance}
+   - Use similar question formats to the original assessment (if identifiable)
+   - Address the root cause of the errors, not just the surface mistakes
+   - Help the student master what they got wrong
+   - Progress from foundational understanding to application
+
+IMPORTANT FALLBACK:
+- If NO clear wrong answers are visible in the materials, focus on the most challenging or complex topics present in the assessment
+- If the materials don't show grading marks, treat them as study materials and identify the most important concepts to practice${contextSection}${additionalSection}
+
+CRITICAL CONSTRAINT - Stay Within Bounds:
+You must operate STRICTLY within the bounds of the provided materials:
+- Use ONLY concepts, terminology, and knowledge present in the uploaded graded work
+- Match the depth and complexity of the original assessment - do not go deeper or introduce advanced topics
+- Do not introduce concepts, frameworks, or vocabulary not covered in the materials
+- The questions should feel like a natural continuation of the original assessment
+- Maintain the same domain vocabulary and notation style used in the original materials
+
+FORMATTING RULES:
+
+1. LaTeX for equations/symbols ONLY:
+   - Use $...$ inline (same line): $E = mc^2$, $H_2O$, $\\alpha$
+   - Use $$...$$ for display (same line): $$x = \\frac{-b \\pm \\sqrt{b^2}}{2a}$$
+   - DO NOT use LaTeX for diagrams, graphs, or spatial layouts
+
+2. Diagrams as text descriptions:
+   - Provide clear written descriptions instead of visual representations
+   - Example: "The graph shows a parabola opening upward with vertex at (0, -4)"
+
+3. Question formatting:
+   - Clear numbering (1, 2, 3, etc.)
+   - Leave space for student answers
+   - Group related questions if appropriate
+
+IMPORTANT: DO NOT include answers in this step. Only generate the questions.
+
+Think carefully about:
+- What errors you observe and why the student made them
+- What underlying concepts need reinforcement
+- How to create questions that build mastery of those specific areas`;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { images, descriptions, step, studyGuide, config, files } = await request.json();
@@ -159,7 +258,7 @@ export async function POST(request: NextRequest) {
     }
 
     const generationStep = step || 1;
-    const studyGuideConfig: StudyGuideConfig | undefined = config;
+    const studyGuideConfig: StudyGuideConfig | FocusedQuizConfig | undefined = config;
 
     // Validate config if provided
     if (studyGuideConfig) {
@@ -169,6 +268,9 @@ export async function POST(request: NextRequest) {
         });
       }
     }
+
+    // Determine if this is a focused quiz
+    const isFocusedQuiz = studyGuideConfig?.mode === 'focused-quiz';
 
     // Create message content based on step
     let messageContent: Anthropic.MessageParam['content'];
@@ -183,7 +285,9 @@ export async function POST(request: NextRequest) {
         const uploadedFiles = files as FileUpload[];
 
         // Build context text with descriptions
-        let contextText = 'Please analyze these materials (student notes and past quiz questions), then generate a new practice study guide with QUESTIONS ONLY (no answers).';
+        let contextText = isFocusedQuiz
+          ? 'Please analyze these graded assignment/test materials to identify wrong answers and knowledge gaps, then generate a targeted practice quiz with QUESTIONS ONLY (no answers).'
+          : 'Please analyze these materials (student notes and past quiz questions), then generate a new practice study guide with QUESTIONS ONLY (no answers).';
 
         const descriptionsWithFiles = uploadedFiles
           .filter(f => f.description)
@@ -253,21 +357,34 @@ export async function POST(request: NextRequest) {
       }
 
       messageContent = contentParts;
-      systemPrompt = buildStep1Prompt(studyGuideConfig);
+
+      // Use appropriate prompt based on mode
+      if (isFocusedQuiz) {
+        systemPrompt = buildFocusedQuizStep1Prompt(studyGuideConfig as FocusedQuizConfig);
+      } else {
+        systemPrompt = buildStep1Prompt(studyGuideConfig as StudyGuideConfig);
+      }
     } else {
-      // Step 2: Generate answers based on study guide
+      // Step 2: Generate answers based on study guide (or focused quiz)
       if (!studyGuide) {
         return new Response('Invalid request: studyGuide required for step 2', {
           status: 400,
         });
       }
+
+      const answerText = isFocusedQuiz
+        ? `Here is the focused quiz with practice questions:\n\n${studyGuide}\n\nPlease generate a complete answer sheet with detailed answers for all questions.`
+        : `Here is the study guide with practice questions:\n\n${studyGuide}\n\nPlease generate a complete answer sheet with detailed answers for all questions.`;
+
       messageContent = [
         {
           type: 'text',
-          text: `Here is the study guide with practice questions:\n\n${studyGuide}\n\nPlease generate a complete answer sheet with detailed answers for all questions.`,
+          text: answerText,
         },
       ];
-      systemPrompt = buildStep2Prompt(studyGuideConfig);
+
+      // Step 2 uses same prompt for both modes (just generating answers)
+      systemPrompt = buildStep2Prompt(studyGuideConfig as StudyGuideConfig);
     }
 
     // Create streaming response

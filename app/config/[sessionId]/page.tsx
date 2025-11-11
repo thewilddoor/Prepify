@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ConfigForm } from '@/components/config-form';
+import { FocusedQuizConfigForm } from '@/components/focused-quiz-config-form';
 import { getSession, updateSession } from '@/lib/db';
-import type { Session, StudyGuideConfig } from '@/types';
+import type { Session, StudyGuideConfig, FocusedQuizConfig } from '@/types';
 
 export default function ConfigPage() {
   const router = useRouter();
@@ -35,7 +36,7 @@ export default function ConfigPage() {
     loadSession();
   }, [sessionId]);
 
-  const handleConfigSubmit = async (config: StudyGuideConfig) => {
+  const handleConfigSubmit = async (config: StudyGuideConfig | FocusedQuizConfig) => {
     if (!session) return;
 
     try {
@@ -61,7 +62,7 @@ export default function ConfigPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-custom mx-auto mb-4"></div>
           <p className="text-gray-600">Loading session...</p>
         </div>
       </div>
@@ -75,7 +76,7 @@ export default function ConfigPage() {
           <p className="text-red-600 mb-4">{error || 'Session not found'}</p>
           <button
             onClick={() => router.push('/')}
-            className="text-blue-600 hover:underline"
+            className="text-purple-custom hover:underline"
           >
             Return to home
           </button>
@@ -84,23 +85,34 @@ export default function ConfigPage() {
     );
   }
 
+  const mode = session.mode || 'study-guide';
+  const isFocusedQuiz = mode === 'focused-quiz';
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-50 py-12 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Configure Study Guide
+            {isFocusedQuiz ? 'Configure Focused Quiz' : 'Configure Study Guide'}
           </h1>
           <p className="text-gray-600">
             {session.images.length} {session.images.length === 1 ? 'file' : 'files'} uploaded
           </p>
         </div>
 
-        <ConfigForm
-          onSubmit={handleConfigSubmit}
-          onBack={handleBack}
-          initialConfig={session.config}
-        />
+        {isFocusedQuiz ? (
+          <FocusedQuizConfigForm
+            onSubmit={handleConfigSubmit}
+            onBack={handleBack}
+            initialConfig={session.config as FocusedQuizConfig}
+          />
+        ) : (
+          <ConfigForm
+            onSubmit={handleConfigSubmit}
+            onBack={handleBack}
+            initialConfig={session.config as StudyGuideConfig}
+          />
+        )}
       </div>
     </div>
   );

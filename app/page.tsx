@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { UploadZone } from '@/components/upload-zone';
+import { ModeCard } from '@/components/mode-card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, NotebookPen } from 'lucide-react';
+import { ArrowRight, NotebookPen, Target } from 'lucide-react';
 import { motion } from 'framer-motion';
-import type { ImageUpload, FileUpload } from '@/types';
+import type { ImageUpload, FileUpload, SessionMode } from '@/types';
 import { createSession, fileToBase64, processFile } from '@/lib/session';
 import { cleanupOldSessions } from '@/lib/db';
 import { saveSession } from '@/lib/db';
@@ -14,6 +15,7 @@ import { saveSession } from '@/lib/db';
 export default function Home() {
   const [images, setImages] = useState<ImageUpload[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedMode, setSelectedMode] = useState<SessionMode>('study-guide');
   const router = useRouter();
 
   // Cleanup old sessions on mount
@@ -55,7 +57,7 @@ export default function Home() {
       }
 
       // Create session with both old (images) and new (files) format
-      const session = await createSession(base64Images, descriptions);
+      const session = await createSession(base64Images, descriptions, selectedMode);
 
       // Update session with processed files
       await saveSession({
@@ -92,12 +94,48 @@ export default function Home() {
           </p>
         </motion.div>
 
+        {/* Mode Selection */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          className="mb-12"
         >
-          <UploadZone images={images} onImagesChange={setImages} />
+          <h2 className="text-xl font-semibold mb-6 text-center">Choose Your Mode</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <ModeCard
+              mode="study-guide"
+              title="Study Guide Generator"
+              description="Turn notes and handouts into comprehensive practice questions"
+              icon={<NotebookPen className="h-6 w-6" />}
+              selected={selectedMode === 'study-guide'}
+              onClick={() => setSelectedMode('study-guide')}
+            />
+            <ModeCard
+              mode="focused-quiz"
+              title="Focused Quiz"
+              description="Upload graded work to get targeted practice on your weak areas"
+              icon={<Target className="h-6 w-6" />}
+              selected={selectedMode === 'focused-quiz'}
+              onClick={() => setSelectedMode('focused-quiz')}
+            />
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+        >
+          <UploadZone
+            images={images}
+            onImagesChange={setImages}
+            helpText={
+              selectedMode === 'focused-quiz'
+                ? 'Upload graded assignments/tests with marks and corrections visible'
+                : undefined
+            }
+          />
         </motion.div>
 
         <motion.div

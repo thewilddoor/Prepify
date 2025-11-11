@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { StepCard } from './step-card'
 import { ThinkingBlock } from './thinking-block'
 import { Progress } from '@/components/ui/progress'
-import type { Step, StudyGuideConfig, FileUpload } from '@/types'
+import type { Step, StudyGuideConfig, FocusedQuizConfig, FileUpload } from '@/types'
 
 interface AgenticViewerProps {
   sessionId: string
@@ -13,7 +13,7 @@ interface AgenticViewerProps {
   files?: FileUpload[]
   step?: 1 | 2
   studyGuide?: string
-  config?: StudyGuideConfig
+  config?: StudyGuideConfig | FocusedQuizConfig
   onComplete: (result: string) => void
   onError: (error: string) => void
 }
@@ -182,6 +182,8 @@ export function AgenticViewer({
     }
   }, [sessionId, images, descriptions, onComplete, onError])
 
+  const isFocusedQuiz = config?.mode === 'focused-quiz';
+
   return (
     <div className="min-h-screen">
       {/* Progress Bar - Fixed at top with equal margins */}
@@ -192,7 +194,9 @@ export function AgenticViewer({
               {progress === 100
                 ? 'Complete'
                 : step === 1
-                ? 'Generating Questions'
+                ? isFocusedQuiz
+                  ? 'Analyzing Errors & Generating Quiz'
+                  : 'Generating Questions'
                 : 'Generating Answers'}
             </h2>
             <span className="text-sm text-muted-foreground tabular-nums">
