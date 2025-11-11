@@ -69,6 +69,14 @@ export default function GeneratePage() {
         // Save answer sheet and complete
         await saveAnswerSheet(sessionId, result);
 
+        // Increment generation counter
+        try {
+          await fetch('/api/stats', { method: 'POST' });
+        } catch (err) {
+          console.error('Failed to update stats:', err);
+          // Don't fail the generation if stats update fails
+        }
+
         // Navigate to result page
         router.push(`/result/${sessionId}`);
       }

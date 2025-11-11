@@ -16,11 +16,29 @@ export default function Home() {
   const [images, setImages] = useState<ImageUpload[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedMode, setSelectedMode] = useState<SessionMode>('study-guide');
+  const [totalGenerations, setTotalGenerations] = useState<number | null>(null);
   const router = useRouter();
 
   // Cleanup old sessions on mount
   useEffect(() => {
     cleanupOldSessions().catch(console.error);
+  }, []);
+
+  // Fetch generation stats on mount
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch('/api/stats');
+        if (response.ok) {
+          const data = await response.json();
+          setTotalGenerations(data.totalGenerations);
+        }
+      } catch (error) {
+        console.error('Failed to fetch stats:', error);
+      }
+    };
+
+    fetchStats();
   }, []);
 
   const handleGenerate = async () => {
@@ -92,6 +110,16 @@ export default function Home() {
           <p className="text-2xl text-gray-600 dark:text-gray-400">
             Turns your unit notes and handouts into personalized study guides
           </p>
+          {totalGenerations !== null && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="mt-4 text-lg text-gray-500 dark:text-gray-500"
+            >
+              Prepify has contributed to {totalGenerations.toLocaleString()} test preps
+            </motion.p>
+          )}
         </motion.div>
 
         {/* Mode Selection */}
