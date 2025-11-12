@@ -69,12 +69,35 @@ export default function GeneratePage() {
         // Save answer sheet and complete
         await saveAnswerSheet(sessionId, result);
 
-        // Set default title if not already set
-        if (session && !session.title) {
-          const defaultTitle = session.mode === 'focused-quiz'
-            ? `Focused Quiz - ${new Date().toLocaleDateString()}`
-            : `Study Guide - ${new Date().toLocaleDateString()}`;
-          await updateSession(sessionId, { title: defaultTitle });
+        // Auto-generate title if not already set
+        if (session && !session.title && session.studyGuide) {
+          try {
+            const titleResponse = await fetch('/api/generate-title', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                studyGuidePreview: session.studyGuide,
+              }),
+            });
+
+            if (titleResponse.ok) {
+              const { title } = await titleResponse.json();
+              await updateSession(sessionId, { title });
+            } else {
+              // Fallback to default title if generation fails
+              const defaultTitle = session.mode === 'focused-quiz'
+                ? `Focused Quiz - ${new Date().toLocaleDateString()}`
+                : `Study Guide - ${new Date().toLocaleDateString()}`;
+              await updateSession(sessionId, { title: defaultTitle });
+            }
+          } catch (err) {
+            console.error('Failed to generate title:', err);
+            // Fallback to default title
+            const defaultTitle = session.mode === 'focused-quiz'
+              ? `Focused Quiz - ${new Date().toLocaleDateString()}`
+              : `Study Guide - ${new Date().toLocaleDateString()}`;
+            await updateSession(sessionId, { title: defaultTitle });
+          }
         }
 
         // Increment generation counter
