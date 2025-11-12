@@ -134,7 +134,7 @@ export default function Home() {
               transition={{ duration: 0.6, delay: 0.3 }}
               className="mt-4 text-lg text-gray-500 dark:text-gray-500"
             >
-              Prepify has contributed to {totalGenerations.toLocaleString()} test preps
+              Prepify has contributed to {totalGenerations.toLocaleString()} tests
             </motion.p>
           )}
         </motion.div>
