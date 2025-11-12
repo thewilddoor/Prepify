@@ -26,6 +26,20 @@ export function UploadZone({ onImagesChange, images, helpText }: UploadZoneProps
         for (const file of acceptedFiles) {
           const fileType = detectFileType(file);
 
+          // Validate file size based on type
+          const maxImageSize = 7 * 1024 * 1024; // 7MB
+          const maxDocSize = 32 * 1024 * 1024; // 32MB
+
+          if (fileType === 'image' && file.size > maxImageSize) {
+            alert(`${file.name} is too large. Images must be 7MB or less.`);
+            continue;
+          }
+
+          if ((fileType === 'pdf' || fileType === 'ppt') && file.size > maxDocSize) {
+            alert(`${file.name} is too large. PDF and PowerPoint files must be 32MB or less.`);
+            continue;
+          }
+
           // Only compress images, leave PDFs and PPTs as-is
           const processedFile = fileType === 'image' ? await compressImage(file) : file;
 
@@ -58,8 +72,28 @@ export function UploadZone({ onImagesChange, images, helpText }: UploadZoneProps
       'application/vnd.ms-powerpoint': ['.ppt'],
       'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
     },
-    maxSize: 32 * 1024 * 1024, // 32MB (Claude's PDF limit)
     multiple: true,
+    validator: (file) => {
+      const fileType = detectFileType(file);
+      const maxImageSize = 7 * 1024 * 1024; // 7MB
+      const maxDocSize = 32 * 1024 * 1024; // 32MB
+
+      if (fileType === 'image' && file.size > maxImageSize) {
+        return {
+          code: 'file-too-large',
+          message: `Images must be 7MB or less`,
+        };
+      }
+
+      if ((fileType === 'pdf' || fileType === 'ppt') && file.size > maxDocSize) {
+        return {
+          code: 'file-too-large',
+          message: `PDF and PowerPoint files must be 32MB or less`,
+        };
+      }
+
+      return null;
+    },
   });
 
   const removeImage = (index: number) => {
@@ -111,7 +145,7 @@ export function UploadZone({ onImagesChange, images, helpText }: UploadZoneProps
             Images (JPG, PNG, GIF, WEBP), PDFs, PowerPoint (PPT, PPTX)
           </p>
           <p className="text-xs text-gray-400 mt-1">
-            Max 32MB per file • PPT files limited to 15 pages
+            Max 7MB per image • Max 32MB per PDF/PPT • PPT files limited to 15 pages
           </p>
         </div>
       </Card>

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { UploadZone } from '@/components/upload-zone';
 import { ModeCard } from '@/components/mode-card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, NotebookPen, Target } from 'lucide-react';
+import { ArrowRight, NotebookPen, Target, History } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { ImageUpload, FileUpload, SessionMode } from '@/types';
 import { createSession, fileToBase64, processFile } from '@/lib/session';
@@ -95,11 +95,28 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-white dark:bg-[#0A0A0A]">
       <main className="max-w-6xl mx-auto px-8 py-16">
+        {/* History Button */}
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4 }}
+          className="flex justify-end mb-4"
+        >
+          <Button
+            variant="outline"
+            onClick={() => router.push('/history')}
+            className="gap-2"
+          >
+            <History className="h-4 w-4" />
+            History
+          </Button>
+        </motion.div>
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="text-center mb-16"
+          className="text-center mb-12"
         >
           <div className="flex items-center justify-center gap-3 mb-4">
             <NotebookPen className="h-8 w-8" style={{ color: '#C8A8E3' }} />
@@ -127,10 +144,9 @@ export default function Home() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1 }}
-          className="mb-12"
+          className="mb-10"
         >
-          <h2 className="text-xl font-semibold mb-6 text-center">Choose Your Mode</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             <ModeCard
               mode="study-guide"
               title="Study Guide Generator"
@@ -153,7 +169,7 @@ export default function Home() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.3 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
         >
           <UploadZone
             images={images}

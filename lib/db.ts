@@ -41,4 +41,21 @@ export const cleanupOldSessions = async (): Promise<void> => {
   await db.sessions.where('timestamp').below(sevenDaysAgo).delete();
 };
 
+// Get only completed sessions, sorted by completion date
+export const getCompletedSessions = async (): Promise<Session[]> => {
+  return await db.sessions
+    .where('status')
+    .equals('complete')
+    .reverse()
+    .sortBy('completedAt');
+};
+
+// Update session title
+export const updateSessionTitle = async (
+  id: string,
+  title: string
+): Promise<void> => {
+  await db.sessions.update(id, { title });
+};
+
 export { db };

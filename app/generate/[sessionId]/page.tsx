@@ -69,6 +69,14 @@ export default function GeneratePage() {
         // Save answer sheet and complete
         await saveAnswerSheet(sessionId, result);
 
+        // Set default title if not already set
+        if (session && !session.title) {
+          const defaultTitle = session.mode === 'focused-quiz'
+            ? `Focused Quiz - ${new Date().toLocaleDateString()}`
+            : `Study Guide - ${new Date().toLocaleDateString()}`;
+          await updateSession(sessionId, { title: defaultTitle });
+        }
+
         // Increment generation counter
         try {
           await fetch('/api/stats', { method: 'POST' });

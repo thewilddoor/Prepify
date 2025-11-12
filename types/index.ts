@@ -31,6 +31,7 @@ export interface Session {
   completedAt?: number;
   mode?: SessionMode; // Mode: study-guide or focused-quiz
   config?: StudyGuideConfig | FocusedQuizConfig; // Configuration for generation
+  title?: string; // Custom user-editable title
 }
 
 export interface StreamEvent {
