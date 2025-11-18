@@ -6,6 +6,86 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
+// Helper function to reconstruct file contents for prompts
+function reconstructFileContents(
+  images?: string[],
+  descriptions?: string[],
+  files?: FileUpload[]
+): any[] {
+  const contentParts: any[] = [];
+  const hasFiles = files && Array.isArray(files) && files.length > 0;
+  const hasImages = images && Array.isArray(images) && images.length > 0;
+
+  if (hasFiles) {
+    const uploadedFiles = files as FileUpload[];
+
+    // Build descriptions section
+    const descriptionsWithFiles = uploadedFiles
+      .filter(f => f.description)
+      .map((f) => `${f.fileName}: ${f.description}`)
+      .filter(Boolean);
+
+    if (descriptionsWithFiles.length > 0) {
+      contentParts.push({
+        type: 'text',
+        text: `Original materials context:\n${descriptionsWithFiles.join('\n')}\n\n`,
+      });
+    }
+
+    // Add each file based on its type
+    for (const file of uploadedFiles) {
+      if (file.type === 'image') {
+        // Images: send as base64 image
+        contentParts.push({
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: 'image/jpeg',
+            data: file.data,
+          },
+        });
+      } else if (file.type === 'pdf') {
+        // PDFs: send as document using Claude's native PDF support
+        contentParts.push({
+          type: 'document',
+          source: {
+            type: 'base64',
+            media_type: 'application/pdf',
+            data: file.data,
+          },
+        });
+      } else if (file.type === 'ppt') {
+        // PPTs: send extracted text
+        contentParts.push({
+          type: 'text',
+          text: `\n\n--- Content from PowerPoint file: ${file.fileName} ---\n${file.extractedText}\n--- End of ${file.fileName} ---\n\n`,
+        });
+      }
+    }
+  } else if (hasImages) {
+    // Fall back to old images format
+    if (descriptions && descriptions.length > 0) {
+      contentParts.push({
+        type: 'text',
+        text: `Original materials context:\n${descriptions.map((d: string, i: number) => `Image ${i + 1}: ${d}`).join('\n')}\n\n`,
+      });
+    }
+
+    contentParts.push(
+      ...images.map((base64Image: string) => ({
+        type: 'image' as const,
+        source: {
+          type: 'base64' as const,
+          media_type: 'image/jpeg' as const,
+          data: base64Image,
+        },
+      }))
+    );
+  }
+
+  return contentParts;
+}
+
 // Helper function to build step 1 prompt with config
 function buildStep1Prompt(config?: StudyGuideConfig): string {
   const questionCount = config?.questionCount || 15;
@@ -280,81 +360,19 @@ export async function POST(request: NextRequest) {
       // Step 1: Generate questions from files (images, PDFs, PPTs)
       const contentParts: any[] = [];
 
-      // Use new files format if available, otherwise fall back to images
-      if (hasFiles) {
-        const uploadedFiles = files as FileUpload[];
+      // Add intro text
+      const introText = isFocusedQuiz
+        ? 'Please analyze these graded assignment/test materials to identify wrong answers and knowledge gaps, then generate a targeted practice quiz with QUESTIONS ONLY (no answers).'
+        : 'Please analyze these materials (student notes and past quiz questions), then generate a new practice study guide with QUESTIONS ONLY (no answers).';
 
-        // Build context text with descriptions
-        let contextText = isFocusedQuiz
-          ? 'Please analyze these graded assignment/test materials to identify wrong answers and knowledge gaps, then generate a targeted practice quiz with QUESTIONS ONLY (no answers).'
-          : 'Please analyze these materials (student notes and past quiz questions), then generate a new practice study guide with QUESTIONS ONLY (no answers).';
+      contentParts.push({
+        type: 'text',
+        text: introText,
+      });
 
-        const descriptionsWithFiles = uploadedFiles
-          .filter(f => f.description)
-          .map((f) => `${f.fileName}: ${f.description}`)
-          .filter(Boolean);
-
-        if (descriptionsWithFiles.length > 0) {
-          contextText += `\n\nContext provided:\n${descriptionsWithFiles.join('\n')}`;
-        }
-
-        contentParts.push({
-          type: 'text',
-          text: contextText,
-        });
-
-        // Add each file based on its type
-        for (const file of uploadedFiles) {
-          if (file.type === 'image') {
-            // Images: send as base64 image
-            contentParts.push({
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: 'image/jpeg',
-                data: file.data,
-              },
-            });
-          } else if (file.type === 'pdf') {
-            // PDFs: send as document using Claude's native PDF support
-            contentParts.push({
-              type: 'document',
-              source: {
-                type: 'base64',
-                media_type: 'application/pdf',
-                data: file.data,
-              },
-            });
-          } else if (file.type === 'ppt') {
-            // PPTs: send extracted text
-            contentParts.push({
-              type: 'text',
-              text: `\n\n--- Content from PowerPoint file: ${file.fileName} ---\n${file.extractedText}\n--- End of ${file.fileName} ---\n\n`,
-            });
-          }
-        }
-      } else {
-        // Fall back to old images format
-        contentParts.push({
-          type: 'text',
-          text: `Please analyze these images of student notes and past quiz questions, then generate a new practice study guide with QUESTIONS ONLY (no answers).${
-            descriptions?.length > 0
-              ? `\n\nContext provided:\n${descriptions.map((d: string, i: number) => `Image ${i + 1}: ${d}`).join('\n')}`
-              : ''
-          }`,
-        });
-
-        contentParts.push(
-          ...images.map((base64Image: string) => ({
-            type: 'image' as const,
-            source: {
-              type: 'base64' as const,
-              media_type: 'image/jpeg' as const,
-              data: base64Image,
-            },
-          }))
-        );
-      }
+      // Reconstruct and add file contents
+      const fileContents = reconstructFileContents(images, descriptions, files);
+      contentParts.push(...fileContents);
 
       messageContent = contentParts;
 
@@ -372,16 +390,29 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      const answerText = isFocusedQuiz
-        ? `Here is the focused quiz with practice questions:\n\n${studyGuide}\n\nPlease generate a complete answer sheet with detailed answers for all questions.`
-        : `Here is the study guide with practice questions:\n\n${studyGuide}\n\nPlease generate a complete answer sheet with detailed answers for all questions.`;
+      const contentParts: any[] = [];
 
-      messageContent = [
-        {
-          type: 'text',
-          text: answerText,
-        },
-      ];
+      // First, include the original materials so answers can reference them
+      contentParts.push({
+        type: 'text',
+        text: 'Here are the original materials that were used to generate the questions:',
+      });
+
+      // Reconstruct and add file contents
+      const fileContents = reconstructFileContents(images, descriptions, files);
+      contentParts.push(...fileContents);
+
+      // Then add the study guide questions
+      const answerText = isFocusedQuiz
+        ? `\n\nNow, here is the focused quiz with practice questions that were generated from the above materials:\n\n${studyGuide}\n\nPlease generate a complete answer sheet with detailed answers for all questions, using ONLY the information from the original materials provided above.`
+        : `\n\nNow, here is the study guide with practice questions that were generated from the above materials:\n\n${studyGuide}\n\nPlease generate a complete answer sheet with detailed answers for all questions, using ONLY the information from the original materials provided above.`;
+
+      contentParts.push({
+        type: 'text',
+        text: answerText,
+      });
+
+      messageContent = contentParts;
 
       // Step 2 uses same prompt for both modes (just generating answers)
       systemPrompt = buildStep2Prompt(studyGuideConfig as StudyGuideConfig);
